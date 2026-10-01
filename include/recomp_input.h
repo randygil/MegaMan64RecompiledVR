@@ -83,6 +83,8 @@ namespace recomp {
     bool keyboard_bindings_use_mouse();
     // Right mouse button held for over the shoulder aiming, only in the third person mouse camera.
     bool get_mouse_camera_aim_held();
+    // A quick right click in the third person mouse camera, which uses the special weapon.
+    bool get_mouse_camera_special_tap();
     // Mouse wheel notches since the previous call, positive when scrolling up.
     int consume_mouse_camera_wheel();
     void get_right_analog(float* x, float* y);

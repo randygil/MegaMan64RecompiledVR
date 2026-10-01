@@ -117,9 +117,13 @@ bool recomp::get_n64_input(int controller_num, uint16_t* buttons_out, float* x_o
         // Configs made before mouse buttons could be bound have none, so give the mouse camera usable defaults.
         if (!recomp::keyboard_bindings_use_mouse()) {
             cur_buttons |= recomp::get_mouse_button_held(SDL_BUTTON_LEFT) ? n64_button_values[(size_t)GameInput::B - (size_t)GameInput::N64_BUTTON_START] : 0;
-            // In third person the right button aims over the shoulder instead.
+            // In third person holding the right button aims over the shoulder instead, and a quick click uses the
+            // special weapon.
             if (zelda64::get_mouse_camera_mode() == zelda64::MouseCameraMode::FirstPerson) {
                 cur_buttons |= recomp::get_mouse_button_held(SDL_BUTTON_RIGHT) ? n64_button_values[(size_t)GameInput::C_LEFT - (size_t)GameInput::N64_BUTTON_START] : 0;
+            }
+            else if (recomp::get_mouse_camera_special_tap()) {
+                cur_buttons |= n64_button_values[(size_t)GameInput::C_LEFT - (size_t)GameInput::N64_BUTTON_START];
             }
         }
 

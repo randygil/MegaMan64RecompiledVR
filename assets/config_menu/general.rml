@@ -287,7 +287,7 @@
                         Play with mouse look. <b>First Person</b> puts the camera at Mega Man's eyes: the mouse turns him and tilts the view, shots follow the crosshair and a light aim assist helps near enemies. <b>Third Person</b> orbits the camera freely around him and he walks where the camera points; hold the <b>right mouse button</b> to aim over his shoulder and use the <b>mouse wheel</b> to zoom.
                         <br />
                         <br />
-                        Click the <b>middle mouse button</b> in game to swap between first and third person. If no mouse buttons are bound in the keyboard controls, <b>left click</b> fires the buster and, in first person, <b>right click</b> the special weapon.
+                        Click the <b>middle mouse button</b> in game to swap between first and third person. If no mouse buttons are bound in the keyboard controls, <b>left click</b> fires the buster and <b>right click</b> the special weapon (in third person, a quick click; holding it aims).
                         <br />
                         <br />
                         <b>Note: The cursor is captured while playing. Open the menu to release it.</b>

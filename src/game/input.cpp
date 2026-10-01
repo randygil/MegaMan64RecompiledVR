@@ -94,6 +94,12 @@ static std::atomic_bool mouse_camera_cursor_locked = false;
 static std::atomic_uint32_t mouse_buttons_held = 0;
 // Wheel notches for the mouse camera's third person zoom.
 static std::atomic_int mouse_camera_wheel = 0;
+// Third person mouse camera: a quick right click uses the special weapon, holding it aims over the shoulder.
+constexpr auto right_tap_threshold = std::chrono::milliseconds(200);
+// How long the special weapon button stays pressed after a quick click, so the game sees it.
+constexpr auto right_tap_pulse = std::chrono::milliseconds(100);
+static std::atomic<std::chrono::steady_clock::time_point> right_press_time{};
+static std::atomic<std::chrono::steady_clock::time_point> right_tap_time{};
 
 void recompui::set_cursor_visible(bool visible) {
     cursor_enabled.store(visible);
@@ -185,11 +191,20 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
             if (button_event->button == SDL_BUTTON_MIDDLE && mouse_camera_cursor_locked) {
                 zelda64::toggle_mouse_camera_perspective();
             }
+            if (button_event->button == SDL_BUTTON_RIGHT) {
+                right_press_time = std::chrono::steady_clock::now();
+            }
         }
         queue_if_enabled(event);
         break;
     case SDL_EventType::SDL_MOUSEBUTTONUP:
         mouse_buttons_held.fetch_and(~SDL_BUTTON(event->button.button));
+        if (event->button.button == SDL_BUTTON_RIGHT && mouse_camera_cursor_locked) {
+            auto now = std::chrono::steady_clock::now();
+            if (now - right_press_time.load() < right_tap_threshold) {
+                right_tap_time = now;
+            }
+        }
         queue_if_enabled(event);
         break;
     case SDL_EventType::SDL_MOUSEWHEEL:
@@ -633,7 +648,14 @@ bool recomp::keyboard_bindings_use_mouse() {
 }
 
 bool recomp::get_mouse_camera_aim_held() {
-    return zelda64::get_mouse_camera_mode() == zelda64::MouseCameraMode::ThirdPerson && mouse_button_state(SDL_BUTTON_RIGHT);
+    return zelda64::get_mouse_camera_mode() == zelda64::MouseCameraMode::ThirdPerson && mouse_button_state(SDL_BUTTON_RIGHT) &&
+        std::chrono::steady_clock::now() - right_press_time.load() >= right_tap_threshold;
+}
+
+bool recomp::get_mouse_camera_special_tap() {
+    auto tap_time = right_tap_time.load();
+    return zelda64::get_mouse_camera_mode() == zelda64::MouseCameraMode::ThirdPerson &&
+        tap_time != std::chrono::steady_clock::time_point{} && std::chrono::steady_clock::now() - tap_time < right_tap_pulse;
 }
 
 int recomp::consume_mouse_camera_wheel() {
