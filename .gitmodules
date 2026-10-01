@@ -12,7 +12,8 @@
 	url = https://github.com/sammycage/lunasvg.git
 [submodule "lib/rt64"]
 	path = lib/rt64
-	url = https://github.com/rt64/rt64.git
+	url = https://github.com/randygil/rt64-mm64vr.git
+	branch = mm64vr
 [submodule "lib/MegaMan64Decomp"]
 	path = lib/MegaMan64Decomp
 	url = https://github.com/MegaMan64Recomp/MegaMan64Decomp.git
