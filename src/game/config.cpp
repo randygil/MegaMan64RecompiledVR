@@ -27,9 +27,18 @@ constexpr auto res_default            = ultramodern::renderer::Resolution::Auto;
 constexpr auto hr_default             = ultramodern::renderer::HUDRatioMode::Clamp16x9;
 constexpr auto api_default            = ultramodern::renderer::GraphicsApi::Auto;
 constexpr auto ar_default             = ultramodern::renderer::AspectRatio::Expand;
+#ifdef __ANDROID__
+// Mobile GPUs (and the headset's stereo rendering) get by better without multisampling.
+constexpr auto msaa_default           = ultramodern::renderer::Antialiasing::None;
+#else
 constexpr auto msaa_default           = ultramodern::renderer::Antialiasing::MSAA2X;
+#endif
 constexpr auto rr_default             = ultramodern::renderer::RefreshRate::Display;
+#ifdef __ANDROID__
+constexpr auto hpfb_default           = ultramodern::renderer::HighPrecisionFramebuffer::Off;
+#else
 constexpr auto hpfb_default           = ultramodern::renderer::HighPrecisionFramebuffer::Auto;
+#endif
 constexpr int ds_default              = 1;
 constexpr int rr_manual_default       = 60;
 constexpr bool developer_mode_default = false;
@@ -238,6 +247,10 @@ bool save_general_config(const std::filesystem::path& path) {
     config_json["mouse_sensitivity"] = recomp::get_mouse_sensitivity();
     config_json["joystick_deadzone"] = recomp::get_joystick_deadzone();
     config_json["analog_camera_invert_mode"] = zelda64::get_analog_camera_invert_mode();
+    config_json["mouse_camera_mode"] = zelda64::get_mouse_camera_mode();
+    config_json["first_person_strafe_mode"] = zelda64::get_first_person_strafe_mode();
+    config_json["mouse_camera_fov"] = zelda64::get_mouse_camera_fov();
+    config_json["vr_fov"] = zelda64::get_vr_fov();
     config_json["debug_mode"] = zelda64::get_debug_mode_enabled();
 
     return save_json_with_backups(path, config_json);
@@ -251,6 +264,10 @@ void set_general_settings_from_json(const nlohmann::json& config_json) {
     recomp::set_mouse_sensitivity(from_or_default(config_json, "mouse_sensitivity", is_steam_deck ? 50 : 0));
     recomp::set_joystick_deadzone(from_or_default(config_json, "joystick_deadzone", 0));
     zelda64::set_analog_camera_invert_mode(from_or_default(config_json, "analog_camera_invert_mode", zelda64::AimInvertMode::On));
+    zelda64::set_mouse_camera_mode(from_or_default(config_json, "mouse_camera_mode", zelda64::MouseCameraMode::Off));
+    zelda64::set_first_person_strafe_mode(from_or_default(config_json, "first_person_strafe_mode", zelda64::FirstPersonStrafeMode::On));
+    zelda64::set_mouse_camera_fov(from_or_default(config_json, "mouse_camera_fov", 70));
+    zelda64::set_vr_fov(from_or_default(config_json, "vr_fov", 100));
     zelda64::set_debug_mode_enabled(from_or_default(config_json, "debug_mode", false));
 }
 

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "recomp_ui.h"
 #include "recomp_input.h"
 #include "zelda_sound.h"
@@ -9,6 +10,9 @@
 #include "ultramodern/config.hpp"
 #include "ultramodern/ultramodern.hpp"
 #include "RmlUi/Core.h"
+#ifdef RECOMP_VR
+#include "recomp_vr.h"
+#endif
 
 #include "core/ui_context.h"
 
@@ -240,6 +244,11 @@ struct ControlOptionsContext {
     zelda64::RadioBoxMode radio_comm_box_mode;
     zelda64::AimInvertMode invert_y_axis_mode;
     zelda64::AimInvertMode analog_camera_invert_mode;
+    std::atomic<zelda64::MouseCameraMode> mouse_camera_mode;
+    std::atomic<zelda64::FirstPersonStrafeMode> first_person_strafe_mode;
+    int mouse_camera_fov; // 45 to 110
+    int vr_fov = 100; // 40 to 100
+    bool vr_build = false;
 };
 
 ControlOptionsContext control_options_context;
@@ -357,6 +366,71 @@ void zelda64::set_analog_camera_invert_mode(zelda64::AimInvertMode mode) {
     control_options_context.analog_camera_invert_mode = mode;
     if (general_model_handle) {
         general_model_handle.DirtyVariable("analog_camera_invert_mode");
+    }
+}
+
+zelda64::MouseCameraMode zelda64::get_mouse_camera_mode() {
+    return control_options_context.mouse_camera_mode.load();
+}
+
+void zelda64::set_mouse_camera_mode(zelda64::MouseCameraMode mode) {
+    control_options_context.mouse_camera_mode.store(mode);
+    if (general_model_handle) {
+        general_model_handle.DirtyVariable("mouse_camera_mode");
+    }
+
+    // A sensitivity of zero would make the mouse camera look broken, so give it a usable value.
+    if (mode != zelda64::MouseCameraMode::Off && recomp::get_mouse_sensitivity() == 0) {
+        recomp::set_mouse_sensitivity(50);
+    }
+}
+
+int zelda64::get_mouse_camera_fov() {
+    return control_options_context.mouse_camera_fov;
+}
+
+void zelda64::set_mouse_camera_fov(int fov) {
+    control_options_context.mouse_camera_fov = std::clamp(fov, 45, 110);
+    if (general_model_handle) {
+        general_model_handle.DirtyVariable("mouse_camera_fov");
+    }
+}
+
+int zelda64::get_vr_fov() {
+    return control_options_context.vr_fov;
+}
+
+void zelda64::set_vr_fov(int percent) {
+    control_options_context.vr_fov = std::clamp(percent, 40, 100);
+#ifdef RECOMP_VR
+    vr::set_fov_percent(control_options_context.vr_fov);
+#endif
+    if (general_model_handle) {
+        general_model_handle.DirtyVariable("vr_fov");
+    }
+}
+
+zelda64::FirstPersonStrafeMode zelda64::get_first_person_strafe_mode() {
+    return control_options_context.first_person_strafe_mode.load();
+}
+
+void zelda64::set_first_person_strafe_mode(zelda64::FirstPersonStrafeMode mode) {
+    control_options_context.first_person_strafe_mode.store(mode);
+    if (general_model_handle) {
+        general_model_handle.DirtyVariable("first_person_strafe_mode");
+    }
+}
+
+void zelda64::toggle_mouse_camera_perspective() {
+    switch (get_mouse_camera_mode()) {
+        case zelda64::MouseCameraMode::ThirdPerson:
+            set_mouse_camera_mode(zelda64::MouseCameraMode::FirstPerson);
+            break;
+        case zelda64::MouseCameraMode::FirstPerson:
+            set_mouse_camera_mode(zelda64::MouseCameraMode::ThirdPerson);
+            break;
+        default:
+            break;
     }
 }
 
@@ -941,6 +1015,14 @@ public:
         constructor.Bind("rumble_strength", &control_options_context.rumble_strength);
         constructor.Bind("gyro_sensitivity", &control_options_context.gyro_sensitivity);
         constructor.Bind("mouse_sensitivity", &control_options_context.mouse_sensitivity);
+        constructor.Bind("mouse_camera_fov", &control_options_context.mouse_camera_fov);
+        constructor.BindFunc("vr_fov",
+            [](Rml::Variant& out) { out = control_options_context.vr_fov; },
+            [](const Rml::Variant& in) { zelda64::set_vr_fov(in.Get<int>()); });
+#ifdef RECOMP_VR
+        control_options_context.vr_build = true;
+#endif
+        constructor.Bind("vr_build", &control_options_context.vr_build);
         constructor.Bind("joystick_deadzone", &control_options_context.joystick_deadzone);
         bind_option(constructor, "targeting_mode", &control_options_context.targeting_mode);
         bind_option(constructor, "background_input_mode", &control_options_context.background_input_mode);
@@ -948,6 +1030,22 @@ public:
         bind_option(constructor, "radio_comm_box_mode", &control_options_context.radio_comm_box_mode);
         bind_option(constructor, "invert_y_axis_mode", &control_options_context.invert_y_axis_mode);
         bind_option(constructor, "analog_camera_invert_mode", &control_options_context.analog_camera_invert_mode);
+        constructor.BindFunc("mouse_camera_mode",
+            [](Rml::Variant& out) { get_option(zelda64::get_mouse_camera_mode(), out); },
+            [](const Rml::Variant& in) {
+                zelda64::MouseCameraMode mode;
+                set_option(mode, in);
+                zelda64::set_mouse_camera_mode(mode);
+            }
+        );
+        constructor.BindFunc("first_person_strafe_mode",
+            [](Rml::Variant& out) { get_option(zelda64::get_first_person_strafe_mode(), out); },
+            [](const Rml::Variant& in) {
+                zelda64::FirstPersonStrafeMode mode;
+                set_option(mode, in);
+                zelda64::set_first_person_strafe_mode(mode);
+            }
+        );
 
         general_model_handle = constructor.GetModelHandle();
     }

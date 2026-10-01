@@ -15,6 +15,15 @@
 #include "recomp_ui.h"
 #include "concurrentqueue.h"
 
+#ifdef RECOMP_VR
+#include "recomp_vr.h"
+#endif
+
+#ifdef __ANDROID__
+#include "SDL2/SDL.h"
+#include "SDL2/SDL_syswm.h"
+#endif
+
 static RT64::UserConfiguration::Antialiasing device_max_msaa = RT64::UserConfiguration::Antialiasing::None;
 static bool sample_positions_supported = false;
 static bool high_precision_fb_enabled = false;
@@ -164,6 +173,18 @@ void set_application_user_config(RT64::Application* application, const ultramode
     application->userConfig.refreshRateTarget = config.rr_manual_value;
     application->userConfig.internalColorFormat = to_rt64(config.hpfb_option);
     application->userConfig.displayBuffering = RT64::UserConfiguration::DisplayBuffering::Triple;
+
+#ifdef RECOMP_VR
+    if (vr::enabled() || vr::debug_enabled()) {
+        // Each eye is one half of the native 4:3 frame, so it must not be stretched or widened. Frames are shown as the
+        // game renders them: interpolated frames would be drawn from head poses in between the ones they're submitted with.
+        application->userConfig.aspectRatio = RT64::UserConfiguration::AspectRatio::Original;
+        application->userConfig.extAspectRatio = RT64::UserConfiguration::AspectRatio::Original;
+        application->userConfig.refreshRate = RT64::UserConfiguration::RefreshRate::Original;
+        application->userConfig.resolution = RT64::UserConfiguration::Resolution::WindowIntegerScale;
+        application->userConfig.downsampleMultiplier = 1;
+    }
+#endif
 }
 
 ultramodern::renderer::SetupResult map_setup_result(RT64::Application::SetupResult rt64_result) {
@@ -210,7 +231,13 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
     RT64::Application::Core appCore{};
 #if defined(_WIN32)
     appCore.window = window_handle.window;
-#elif defined(__linux__) || defined(__ANDROID__)
+#elif defined(__ANDROID__)
+    // Plume takes the native window on Android.
+    SDL_SysWMinfo wm_info;
+    SDL_VERSION(&wm_info.version);
+    SDL_GetWindowWMInfo(window_handle, &wm_info);
+    appCore.window = wm_info.info.android.window;
+#elif defined(__linux__)
     appCore.window = window_handle;
 #elif defined(__APPLE__)
     appCore.window.window = window_handle.window;
@@ -218,6 +245,13 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
 #endif
 
     appCore.checkInterrupts = dummy_check_interrupts;
+
+#ifdef RECOMP_VR
+    if (vr::enabled()) {
+        // Present into the headset instead of the window.
+        appCore.createExternalSwapChain = vr::create_swap_chain;
+    }
+#endif
 
     appCore.HEADER = dummy_rom_header;
     appCore.RDRAM = rdram;
@@ -282,6 +316,13 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
             app->userConfig.graphicsAPI = RT64::UserConfiguration::GraphicsAPI::Automatic;
             break;
     }
+
+#ifdef RECOMP_VR
+    if (vr::enabled()) {
+        // OpenXR shares the Vulkan device.
+        app->userConfig.graphicsAPI = RT64::UserConfiguration::GraphicsAPI::Vulkan;
+    }
+#endif
 
     // Set up the RT64 application.
     uint32_t thread_id = 0;

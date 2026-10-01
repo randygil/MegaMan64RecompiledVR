@@ -1,8 +1,15 @@
 #include <array>
+#include <chrono>
+#include <cstdlib>
 
 #include "librecomp/helpers.hpp"
 #include "recomp_input.h"
+#include "zelda_config.h"
+#include "SDL.h"
 #include "ultramodern/ultramodern.hpp"
+#ifdef RECOMP_VR
+#include "recomp_vr.h"
+#endif
 
 // Arrays that hold the mappings for every input for keyboard and controller respectively.
 using input_mapping = std::array<recomp::InputField, recomp::bindings_per_input>;
@@ -106,6 +113,54 @@ bool recomp::get_n64_input(int controller_num, uint16_t* buttons_out, float* x_o
 
         cur_y = recomp::get_input_analog(keyboard_input_mappings[(size_t)GameInput::Y_AXIS_POS])
                 - recomp::get_input_analog(keyboard_input_mappings[(size_t)GameInput::Y_AXIS_NEG]) + joystick_y;
+
+        // Configs made before mouse buttons could be bound have none, so give the mouse camera usable defaults.
+        if (!recomp::keyboard_bindings_use_mouse()) {
+            cur_buttons |= recomp::get_mouse_button_held(SDL_BUTTON_LEFT) ? n64_button_values[(size_t)GameInput::B - (size_t)GameInput::N64_BUTTON_START] : 0;
+            // In third person the right button aims over the shoulder instead.
+            if (zelda64::get_mouse_camera_mode() == zelda64::MouseCameraMode::FirstPerson) {
+                cur_buttons |= recomp::get_mouse_button_held(SDL_BUTTON_RIGHT) ? n64_button_values[(size_t)GameInput::C_LEFT - (size_t)GameInput::N64_BUTTON_START] : 0;
+            }
+        }
+
+        // FPS style movement: sideways input strafes with the game's own L/R strafe instead of turning, since the
+        // mouse already turns Mega Man.
+        bool fps_movement = zelda64::get_mouse_camera_mode() == zelda64::MouseCameraMode::FirstPerson &&
+            zelda64::get_first_person_strafe_mode() == zelda64::FirstPersonStrafeMode::On;
+#ifdef RECOMP_VR
+        // In VR Mega Man always faces where the player looks.
+        fps_movement = fps_movement || vr::gameplay_active();
+#endif
+        if (fps_movement) {
+            constexpr float strafe_threshold = 0.5f;
+            if (cur_x <= -strafe_threshold) {
+                cur_buttons |= n64_button_values[(size_t)GameInput::L - (size_t)GameInput::N64_BUTTON_START];
+            }
+            else if (cur_x >= strafe_threshold) {
+                cur_buttons |= n64_button_values[(size_t)GameInput::R - (size_t)GameInput::N64_BUTTON_START];
+            }
+            cur_x = 0.0f;
+        }
+    }
+
+    // Development aid: MM64_AUTOLOAD presses through the title screen and loads the first save, so tests don't need
+    // the game window to have focus.
+    static const bool autoload = getenv("MM64_AUTOLOAD") != nullptr;
+    if (autoload) {
+        static const auto start = std::chrono::steady_clock::now();
+        const float t = std::chrono::duration<float>(std::chrono::steady_clock::now() - start).count();
+        const float start_presses[] = { 9.0f, 12.0f, 14.5f, 17.0f };
+        const float a_presses[] = { 19.5f, 21.0f };
+        for (float p : start_presses) {
+            if (t >= p && t < p + 0.15f) {
+                cur_buttons |= n64_button_values[(size_t)GameInput::START - (size_t)GameInput::N64_BUTTON_START];
+            }
+        }
+        for (float p : a_presses) {
+            if (t >= p && t < p + 0.15f) {
+                cur_buttons |= n64_button_values[(size_t)GameInput::A - (size_t)GameInput::N64_BUTTON_START];
+            }
+        }
     }
 
     *buttons_out = cur_buttons;

@@ -2,6 +2,8 @@
 #include "common_structs.h"
 #include "tag_helper.h"
 #include "gfx_patches.h"
+#include "mouse_camera.h"
+#include "vr.h"
 
 bool skip_all_interpolation = FALSE;
 bool skip_terrain_interpolation = FALSE;
@@ -175,6 +177,191 @@ RECOMP_PATCH void func_80027550_2950(void *arg0) {
     } while (index2 <= 0);
 }
 
+//@recomp VR: some draw tasks change their own arguments as they run (the model task replaces its model pointer with
+// one of its parts), so running them a second time for the other eye would go wrong. The first eye saves each task's
+// argument block and the second restores it before running the task again. Blocks are cut short at the allocation
+// frontier from the start of the draw, so allocations made while drawing the first eye are never overwritten.
+#define VR_TASK_BACKUPS 12288
+#define VR_TASK_BACKUP_SIZE 0x100
+static u8 sVrTaskBackups[VR_TASK_BACKUPS][VR_TASK_BACKUP_SIZE];
+static u16 sVrTaskBackupSizes[VR_TASK_BACKUPS];
+static s32 sVrTaskIndex;
+static u32 sVrAllocFrontier;
+static Vp *sVrHudViewports[2];
+
+static void vr_backup_task_arg(void *arg, s32 eye) {
+    s32 index = sVrTaskIndex++;
+    u32 addr = (u32) arg;
+    u32 size = VR_TASK_BACKUP_SIZE;
+
+    if (index >= VR_TASK_BACKUPS || arg == NULL) {
+        return;
+    }
+    if (eye == 0) {
+        // Blocks allocated while drawing the first eye (tasks queued by other tasks) are cut short at the allocation
+        // head instead, so restoring them never overwrites what was allocated after them, like the second eye's own
+        // viewport and projection.
+        u32 limit = addr < sVrAllocFrontier ? sVrAllocFrontier : (u32) D_800D6FA8_B23A8;
+        if (addr < limit && limit - addr < size) {
+            size = limit - addr;
+        }
+        sVrTaskBackupSizes[index] = size;
+        memcpy(sVrTaskBackups[index], arg, size);
+    } else if (sVrTaskBackupSizes[index] != 0) {
+        memcpy(arg, sVrTaskBackups[index], sVrTaskBackupSizes[index]);
+    }
+}
+
+//@recomp Runs the queued draw tasks of every pool. eye is -1 for a normal frame, or the eye (0 left, 1 right) whose half
+// of the frame is being drawn, in which case the 2D rectangles each task draws are fitted into that half.
+static void draw_pools(GfxContext *gfxContext, Mtx *mtxprojectionMtx, Mtx *identMtx, s32 *sp14, s32 eye) {
+    s32 poolNum;
+    s32 var_a3;
+    u32 var_a2_2;
+    s32 unkMtx;
+    s32 colorDither;
+    GfxTaskNode *gfxTaskNode;
+
+    poolNum = 0;
+    var_a3 = 4;
+    var_a2_2 = 0x1D800 * 16; //@recomp check using increased DL size
+    do {
+        gfxTaskNode = gfxContext->taskPoolStart[poolNum];
+        unkMtx = *(s32 *) ((u8 *) &gfxContext->taskPoolStart[poolNum] + 0x144);
+        if (unkMtx != D_801A53D8_1807D8) {
+            if (gfxTaskNode != NULL) {
+                D_801A53D8_1807D8 = unkMtx;
+                switch (unkMtx) {
+                    case 0:
+                        gSPLoadUcode(D_801A90F0_1844F0++, 0xA4770, 0xD1450);
+                        break;
+                    case 1:
+                        gSPLoadUcode(D_801A90F0_1844F0++, 0xA5B00, 0xD1870);
+                        break;
+                }
+                gSPMatrix(D_801A90F0_1844F0++, mtxprojectionMtx,
+                          G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+                gSPMatrix(D_801A90F0_1844F0++, identMtx, G_MTX_PROJECTION | G_MTX_MUL | G_MTX_NOPUSH);
+            }
+        }
+
+        //@recomp VR: the HUD pools draw into the HUD's own area of each eye.
+        if (eye >= 0 && poolNum == VR_HUD_FIRST_POOL && sVrHudViewports[eye] != NULL) {
+            gSPViewport(D_801A90F0_1844F0++, sVrHudViewports[eye]);
+        }
+
+        if (gfxTaskNode != NULL) {
+            do {
+                colorDither = G_CD_BAYER;
+                D_800D6FBC_B23BC =
+                        (u32) D_801A90F0_1844F0 - (u32) D_800D6FB0_B23B0.dls[D_8020559C_1E099C];
+                if (var_a2_2 >= D_800D6FBC_B23BC) {
+                    Gfx *taskStart;
+                    if ((*sp14 == var_a3) && (D_80193C30_16F030 != *sp14)) {
+                        gDPSetColorDither(D_801A90F0_1844F0++, colorDither);
+                    }
+                    *sp14 = D_80193C30_16F030;
+                    //@recomp Basic Tagging, read ID from the padding. The second eye reuses the first one's
+                    // transforms, so it isn't interpolated separately.
+                    if (eye == 1) {
+                        gEXMatrixGroupSkipAll(D_801A90F0_1844F0++, G_EX_ID_IGNORE, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_NONE);
+                    } else {
+                        recomp_interp(gfxTaskNode->unk14);
+                    }
+                    taskStart = D_801A90F0_1844F0;
+                    if (eye >= 0) {
+                        vr_backup_task_arg(gfxTaskNode->arg, eye);
+                    }
+                    gfxTaskNode->func(gfxTaskNode->arg);
+                    if (eye <= 0) {
+                        vr_scan_task_output(taskStart, D_801A90F0_1844F0, poolNum);
+                    }
+                    if (eye >= 0) {
+                        vr_fix_rects(taskStart, D_801A90F0_1844F0, eye, poolNum);
+                    }
+                    gEXPopMatrixGroup(D_801A90F0_1844F0++, G_MTX_MODELVIEW);
+                    gfxTaskNode = gfxTaskNode->next;
+                }
+            } while (gfxTaskNode != NULL);
+        }
+
+        poolNum += 1;
+    } while (poolNum < 16);
+}
+
+//@recomp VR: draws the scene once per eye, each into its half of the frame with its own viewport and projection.
+// Loading a microcode resets the RSP state (viewport included), so each eye starts from the regular 3D microcode, the
+// one the frame starts with, and sets its state after it.
+static void set_eye_state(GfxContext *gfxContext, s32 eye, Vp *eyeViewport, Mtx *eyeProjection, Mtx *identMtx, u16 perspNorm) {
+    s32 halfWidth = SCREEN_WIDTH / 2;
+
+    if (D_801A53D8_1807D8 != 0) {
+        gSPLoadUcode(D_801A90F0_1844F0++, 0xA4770, 0xD1450);
+        D_801A53D8_1807D8 = 0;
+    }
+    gDPPipeSync(D_801A90F0_1844F0++);
+    gDPSetScissor(D_801A90F0_1844F0++, G_SC_NON_INTERLACE, eye * halfWidth, 0, (eye + 1) * halfWidth, SCREEN_HEIGHT);
+    gSPViewport(D_801A90F0_1844F0++, eyeViewport);
+    gSPPerspNormalize(D_801A90F0_1844F0++, perspNorm);
+    gSPMatrix(D_801A90F0_1844F0++, eyeProjection, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+    gSPMatrix(D_801A90F0_1844F0++, identMtx, G_MTX_PROJECTION | G_MTX_MUL | G_MTX_NOPUSH);
+}
+
+static void draw_stereo_pools(GfxContext *gfxContext, s32 *sp14) {
+    s32 eye;
+    Vp *eyeViewports[2];
+    Mtx *eyeProjections[2];
+    Mtx *identMtxs[2];
+    u16 perspNorms[2];
+
+    sVrAllocFrontier = (u32) D_800D6FA8_B23A8;
+    vr_draw_background(gfxContext->fogRed, gfxContext->fogGreen, gfxContext->fogBlue);
+    for (eye = 0; eye < 2; eye++) {
+        sVrTaskIndex = 0;
+        Vp *eyeViewport = func_800281C8_35C8(0x10);
+        Mtx *eyeProjection = func_800281C8_35C8(0x40);
+        Mtx *identMtx = func_800281C8_35C8(0x40);
+        u16 perspNorm = gfxContext->perspNorm;
+        s32 halfWidth = SCREEN_WIDTH / 2;
+
+        if (eyeViewport == NULL || eyeProjection == NULL || identMtx == NULL) {
+            return;
+        }
+
+        memcpy(eyeViewport, &gfxContext->viewport, 0x10);
+        memcpy(eyeProjection, &gfxContext->projectionMtx, 0x40);
+        memcpy(identMtx, &gfxContext->identMtx, 0x40);
+        vr_eye_projection(eyeProjection, &perspNorm, eye);
+        eyeViewport->vp.vscale[0] = (halfWidth / 2) * 4;
+        eyeViewport->vp.vtrans[0] = (halfWidth / 2 + eye * halfWidth) * 4;
+        eyeViewports[eye] = eyeViewport;
+        sVrHudViewports[eye] = func_800281C8_35C8(0x10);
+        if (sVrHudViewports[eye] != NULL) {
+            vr_hud_viewport(sVrHudViewports[eye], (const Vp *) &gfxContext->viewport, eye);
+        }
+        eyeProjections[eye] = eyeProjection;
+        identMtxs[eye] = identMtx;
+        perspNorms[eye] = perspNorm;
+
+        set_eye_state(gfxContext, eye, eyeViewport, eyeProjection, identMtx, perspNorm);
+        gSPFogPosition(D_801A90F0_1844F0++, gfxContext->fogStart, gfxContext->fogEnd);
+        gDPSetFogColor(D_801A90F0_1844F0++, gfxContext->fogRed, gfxContext->fogGreen, gfxContext->fogBlue,
+                       gfxContext->fogAlpha);
+
+        draw_pools(gfxContext, eyeProjection, identMtx, sp14, eye);
+    }
+
+    // The laser sights go on top of both eyes once both are drawn: they change the render state, which the second
+    // eye's scene expects to be the one the first eye's left behind.
+    for (eye = 0; eye < 2; eye++) {
+        set_eye_state(gfxContext, eye, eyeViewports[eye], eyeProjections[eye], identMtxs[eye], perspNorms[eye]);
+        vr_draw_lasers(eyeProjections[eye], identMtxs[eye]);
+    }
+
+    gDPPipeSync(D_801A90F0_1844F0++);
+    gDPSetScissor(D_801A90F0_1844F0++, G_SC_NON_INTERLACE, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+}
+
 //Main Draw
 RECOMP_PATCH void func_800276EC_2AEC(s32 arg0) {
     s32 sp14;
@@ -189,6 +376,7 @@ RECOMP_PATCH void func_800276EC_2AEC(s32 arg0) {
     Vp *viewport;
     Mtx *identMtx;
     Mtx *mtxprojectionMtx;
+    u16 perspNorm;
     s32 width;
     u32 zbuffer;
     s32 unkMtx;
@@ -287,10 +475,13 @@ RECOMP_PATCH void func_800276EC_2AEC(s32 arg0) {
                     memcpy(viewport, &gfxContext->viewport, 0x10);
                     memcpy(mtxprojectionMtx, &gfxContext->projectionMtx, 0x40);
                     memcpy(identMtx, &gfxContext->identMtx, 0x40);
-                    memcpy(&D_801AF370_18A770, &gfxContext->projectionMtx, 0x40);
+                    //@recomp Apply the mouse camera's field of view and near plane.
+                    perspNorm = gfxContext->perspNorm;
+                    mouse_camera_adjust_projection(mtxprojectionMtx, &perspNorm);
+                    memcpy(&D_801AF370_18A770, mtxprojectionMtx, 0x40);
 
                     gSPViewport(D_801A90F0_1844F0++, viewport);
-                    gSPPerspNormalize(D_801A90F0_1844F0++, gfxContext->perspNorm);
+                    gSPPerspNormalize(D_801A90F0_1844F0++, perspNorm);
                     gSPMatrix(D_801A90F0_1844F0++, mtxprojectionMtx, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
                     gSPMatrix(D_801A90F0_1844F0++, identMtx, G_MTX_PROJECTION | G_MTX_MUL | G_MTX_NOPUSH);
 
@@ -298,50 +489,17 @@ RECOMP_PATCH void func_800276EC_2AEC(s32 arg0) {
                     gDPSetFogColor(D_801A90F0_1844F0++, gfxContext->fogRed, gfxContext->fogGreen, gfxContext->fogBlue,
                                    gfxContext->fogAlpha);
 
-                    poolNum = 0;
-                    var_a3 = 4;
-                    var_a2_2 = 0x1D800 * 16; //@recomp check using increased DL size
-                    do {
-                        gfxTaskNode = gfxContext->taskPoolStart[poolNum];
-                        unkMtx = *(s32 *) ((u8 *) &gfxContext->taskPoolStart[poolNum] + 0x144);
-                        if (unkMtx != D_801A53D8_1807D8) {
-                            if (gfxTaskNode != NULL) {
-                                D_801A53D8_1807D8 = unkMtx;
-                                switch (unkMtx) {
-                                    case 0:
-                                        gSPLoadUcode(D_801A90F0_1844F0++, 0xA4770, 0xD1450);
-                                        break;
-                                    case 1:
-                                        gSPLoadUcode(D_801A90F0_1844F0++, 0xA5B00, 0xD1870);
-                                        break;
-                                }
-                                gSPMatrix(D_801A90F0_1844F0++, mtxprojectionMtx,
-                                          G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
-                                gSPMatrix(D_801A90F0_1844F0++, identMtx, G_MTX_PROJECTION | G_MTX_MUL | G_MTX_NOPUSH);
-                            }
-                        }
-
-                        if (gfxTaskNode != NULL) {
-                            do {
-                                colorDither = G_CD_BAYER;
-                                D_800D6FBC_B23BC =
-                                        (u32) D_801A90F0_1844F0 - (u32) D_800D6FB0_B23B0.dls[D_8020559C_1E099C];
-                                if (var_a2_2 >= D_800D6FBC_B23BC) {
-                                    if ((sp14 == var_a3) && (D_80193C30_16F030 != sp14)) {
-                                        gDPSetColorDither(D_801A90F0_1844F0++, colorDither);
-                                    }
-                                    sp14 = D_80193C30_16F030;
-                                    //@recomp Basic Tagging, read ID from the padding
-                                    recomp_interp(gfxTaskNode->unk14);
-                                    gfxTaskNode->func(gfxTaskNode->arg);
-                                    gEXPopMatrixGroup(D_801A90F0_1844F0++, G_MTX_MODELVIEW);
-                                    gfxTaskNode = gfxTaskNode->next;
-                                }
-                            } while (gfxTaskNode != NULL);
-                        }
-
-                        poolNum += 1;
-                    } while (poolNum < 16);
+                    //@recomp In VR gameplay the scene is drawn once per eye, see patches/vr.c.
+                    vr_begin_frame_draw();
+                    if (vr_stereo_frame()) {
+                        draw_stereo_pools(gfxContext, &sp14);
+                    } else {
+                        draw_pools(gfxContext, mtxprojectionMtx, identMtx, &sp14, -1);
+                    }
+                    //@recomp Crosshair for the first person mouse camera, on top of the world and HUD.
+                    if (!vr_stereo_frame()) {
+                        mouse_camera_draw_crosshair();
+                    }
                     if (gfxContext->rgba.c.a != 0) {
                         gSPDisplayList(D_801A90F0_1844F0++, &D_80224F68);
                         gDPSetPrimColor(D_801A90F0_1844F0++, 0, 0, gfxContext->rgba.c.r, gfxContext->rgba.c.g,

@@ -1,3 +1,4 @@
+#include <chrono>
 #include <cstdio>
 #include <cassert>
 #include <unordered_map>
@@ -12,7 +13,10 @@
 
 #include "ultramodern/ultra64.h"
 #include "ultramodern/ultramodern.hpp"
+#ifndef __ANDROID__
+// On Android SDL renames main to SDL_main, which SDLActivity calls after loading this library.
 #define SDL_MAIN_HANDLED
+#endif
 #ifdef _WIN32
 #include "SDL.h"
 #else
@@ -44,6 +48,9 @@
 #include "../../patches/input.h"
 #include "../../patches/sound.h"
 #include "../../patches/misc_funcs.h"
+#include "../../patches/mouse_camera.h"
+#include "../../patches/vr.h"
+#include "recomp_vr.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -53,6 +60,10 @@
 #endif
 
 #include "../../lib/rt64/src/contrib/stb/stb_image.h"
+
+#ifdef __ANDROID__
+#include "../android/android_support.h"
+#endif
 
 const std::string version_string = "0.9.1";
 
@@ -138,12 +149,13 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
 
 #if defined(__APPLE__)
     flags |= SDL_WINDOW_METAL;
-#elif defined(RT64_SDL_WINDOW_VULKAN)
+#elif defined(RT64_SDL_WINDOW_VULKAN) || defined(__ANDROID__)
+    // On Android this also keeps SDL from taking the native window for an OpenGL ES surface.
     flags |= SDL_WINDOW_VULKAN;
 #endif
 
     window = SDL_CreateWindow("Mega Man 64: Recompiled", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 960,  flags);
-#if defined(__linux__)
+#if defined(__linux__) && !defined(__ANDROID__)
     SetImageAsIcon("icons/512.png",window);
     if (ultramodern::renderer::get_graphics_config().wm_option == ultramodern::renderer::WindowMode::Fullscreen) { // TODO: Remove once RT64 gets native fullscreen support on Linux
         SDL_SetWindowFullscreen(window,SDL_WINDOW_FULLSCREEN_DESKTOP);
@@ -172,8 +184,28 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
 #endif
 }
 
+extern std::vector<recomp::GameEntry> supported_games;
+
 void update_gfx(void*) {
     recomp::handle_events();
+
+    // Development aid: MM64_AUTOSTART=1, or an autostart.txt file in the app folder, starts the game from the
+    // launcher right away.
+    static bool autostart_done = false;
+    static const bool autostart = getenv("MM64_AUTOSTART") != nullptr ||
+        std::filesystem::exists(zelda64::get_app_folder_path() / "autostart.txt");
+    if (!autostart_done && autostart) {
+        static const auto first_update = std::chrono::steady_clock::now();
+        std::u8string game_id = supported_games[0].game_id;
+        if (std::chrono::steady_clock::now() - first_update > std::chrono::seconds(3) && recomp::is_rom_valid(game_id)) {
+            autostart_done = true;
+            recomp::start_game(supported_games[0].game_id);
+            recompui::hide_all_contexts();
+        }
+    }
+#ifdef RECOMP_VR
+    vr::update();
+#endif
 }
 
 static SDL_AudioCVT audio_convert;
@@ -307,7 +339,13 @@ void reset_audio(uint32_t output_freq) {
         .format = AUDIO_F32,
         .channels = (Uint8)output_channels,
         .silence = 0, // calculated
+#ifdef __ANDROID__
+        // Android's audio thread can be held up for longer (the VR runtime competes for the CPU), and a small buffer
+        // runs dry and crackles.
+        .samples = 0x800,
+#else
         .samples = 0x100, // Fairly small sample count to reduce the latency of internal buffering
+#endif
         .padding = 0, // unused
         .size = 0, // calculated
         .callback = nullptr,
@@ -565,6 +603,9 @@ void reorder_texture_pack(recomp::mods::ModContext&) {
 int main(int argc, char** argv) {
     (void)argc;
     (void)argv;
+#ifdef __ANDROID__
+    android_prepare_environment();
+#endif
     recomp::Version project_version{};
     if (!recomp::Version::from_string(version_string, project_version)) {
         ultramodern::error_handling::message_box(("Invalid version string: " + version_string).c_str());
@@ -648,6 +689,11 @@ int main(int argc, char** argv) {
         recomp::register_game(game);
     }
 
+#ifdef __ANDROID__
+    // There's no file picker on Android: import a ROM copied into the app's folder instead.
+    android_import_rom(supported_games[0].game_id);
+#endif
+
     REGISTER_FUNC(recomp_get_window_resolution);
     REGISTER_FUNC(recomp_get_target_aspect_ratio);
     REGISTER_FUNC(recomp_get_target_hud_aspect_ratio);
@@ -659,7 +705,15 @@ int main(int argc, char** argv) {
     //REGISTER_FUNC(recomp_get_bgm_volume);
     //REGISTER_FUNC(recomp_get_low_health_beeps_enabled);
     //REGISTER_FUNC(recomp_get_gyro_deltas);
-    //REGISTER_FUNC(recomp_get_mouse_deltas);
+    REGISTER_FUNC(recomp_get_mouse_deltas);
+    REGISTER_FUNC(recomp_get_mouse_camera_mode);
+    REGISTER_FUNC(recomp_get_mouse_camera_deltas);
+    REGISTER_FUNC(recomp_get_mouse_camera_fov);
+    REGISTER_FUNC(recomp_get_mouse_camera_aim);
+    REGISTER_FUNC(recomp_get_mouse_camera_wheel);
+    REGISTER_FUNC(recomp_vr_get_frame);
+    REGISTER_FUNC(recomp_vr_set_stereo);
+    REGISTER_FUNC(recomp_vr_haptic);
     //REGISTER_FUNC(recomp_get_inverted_axes);
     //REGISTER_FUNC(recomp_get_analog_inverted_axes);
 
@@ -667,6 +721,14 @@ int main(int argc, char** argv) {
     zelda64::register_patches();
     recomputil::register_data_api_exports();
     zelda64::load_config();
+
+#ifdef RECOMP_VR
+    // Start OpenXR before the renderer so it can pick the GPU and Vulkan extensions. Without a headset the game just
+    // runs on the desktop.
+    if (vr::init()) {
+        printf("VR mode enabled\n");
+    }
+#endif
 
     recomp::rsp::callbacks_t rsp_callbacks{
         .get_rsp_microcode = get_rsp_microcode,

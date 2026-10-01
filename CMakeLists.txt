@@ -41,6 +41,10 @@ if (WIN32)
     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/lib/")
 endif()
 
+if (ANDROID)
+    include(${CMAKE_SOURCE_DIR}/android/android_deps.cmake)
+endif()
+
 set(RT64_STATIC TRUE)
 set(RT64_SDL_WINDOW_VULKAN TRUE)
 add_compile_definitions(HLSL_CPU)
@@ -159,8 +163,13 @@ file(DOWNLOAD ${GAMECONTROLLERDB_URL} ${CMAKE_SOURCE_DIR}/gamecontrollerdb.txt
 add_custom_target(DownloadGameControllerDB
     DEPENDS ${CMAKE_SOURCE_DIR}/gamecontrollerdb.txt)
 
-# Main executable
-add_executable(MegaMan64Recompiled)
+# Main executable (a shared library loaded by SDLActivity on Android)
+if (ANDROID)
+    add_library(MegaMan64Recompiled SHARED)
+    set_target_properties(MegaMan64Recompiled PROPERTIES OUTPUT_NAME "main")
+else()
+    add_executable(MegaMan64Recompiled)
+endif()
 add_dependencies(MegaMan64Recompiled DownloadGameControllerDB)
 
 set (SOURCES
@@ -323,6 +332,11 @@ if (APPLE)
     include(${CMAKE_SOURCE_DIR}/.github/macos/apple_bundle.cmake)
 endif()
 
+if (ANDROID)
+    target_sources(MegaMan64Recompiled PRIVATE ${CMAKE_SOURCE_DIR}/src/android/android_main.cpp)
+    target_link_libraries(MegaMan64Recompiled PRIVATE SDL2::SDL2 android log ${CMAKE_DL_LIBS})
+endif()
+
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     find_package(SDL2 REQUIRED)
     find_package(X11 REQUIRED)
@@ -365,6 +379,19 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     target_link_libraries(MegaMan64Recompiled PRIVATE "-latomic -static-libstdc++" ${CMAKE_DL_LIBS} Threads::Threads)
 endif()
 
+# OpenXR (VR) support. Needs the OpenXR headers and loader: set OPENXR_INCLUDE_DIR and OPENXR_LOADER_LIBRARY
+# (the import library on Windows, libopenxr_loader.so on Android).
+option(RECOMP_VR "Build with OpenXR support" OFF)
+if (RECOMP_VR)
+    target_compile_definitions(MegaMan64Recompiled PRIVATE RECOMP_VR)
+    target_sources(MegaMan64Recompiled PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/vr/vr_openxr.cpp
+        ${CMAKE_SOURCE_DIR}/src/vr/vr_game_api.cpp
+    )
+    target_include_directories(MegaMan64Recompiled PRIVATE ${OPENXR_INCLUDE_DIR})
+    target_link_libraries(MegaMan64Recompiled PRIVATE ${OPENXR_LOADER_LIBRARY})
+endif()
+
 target_link_libraries(MegaMan64Recompiled PRIVATE
     PatchesLib
     RecompiledFuncs
@@ -388,7 +415,7 @@ set (DXC_CS_OPTS "${DXC_COMMON_OPTS}" "-E" "CSMain" "-T cs_6_0")
 set (DXC_GS_OPTS "${DXC_COMMON_OPTS}" "-E" "GSMain" "-T gs_6_0")
 set (DXC_RT_OPTS "${DXC_COMMON_OPTS}" "-D" "RT_SHADER" "-T" "lib_6_3" "-fspv-target-env=vulkan1.1spirv1.4" "-fspv-extension=SPV_KHR_ray_tracing" "-fspv-extension=SPV_EXT_descriptor_indexing")
 
-if (${WIN32})
+if (WIN32 OR (ANDROID AND CMAKE_HOST_WIN32))
     set (DXC "${PROJECT_SOURCE_DIR}/lib/rt64/src/contrib/dxc/bin/x64/dxc.exe")
     add_compile_definitions(NOMINMAX)
 else()
