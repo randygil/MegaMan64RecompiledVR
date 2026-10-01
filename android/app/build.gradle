@@ -1,0 +1,55 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The native libraries are built by android/build_native.sh (CMake + NDK) and picked up from src/main/jniLibs.
+// The game's UI assets and controller database are copied into the APK and extracted on first launch.
+def gameAssetsDir = layout.buildDirectory.dir("generated/gameassets")
+
+tasks.register('copyGameAssets', Copy) {
+    from("${rootDir}/../assets") { into 'assets' }
+    from("${rootDir}/../recompcontrollerdb.txt")
+    into gameAssetsDir
+}
+
+android {
+    namespace 'com.megaman64recomp.vr'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.megaman64recomp.vr'
+        minSdk 29
+        targetSdk 32
+        versionCode 1
+        versionName '0.9.1-vr'
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    sourceSets {
+        main {
+            assets.srcDirs += gameAssetsDir
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+tasks.named('preBuild') { dependsOn 'copyGameAssets' }
