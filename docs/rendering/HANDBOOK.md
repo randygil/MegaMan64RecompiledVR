@@ -162,6 +162,9 @@ Estos datos viven **solo en el host** (`src/main/rt64_render_context.cpp`, `src/
   sin luz guardan el color en el hueco de la normal: usar normales solo si el vértice tiene luces RSP.
 - Las direcciones de luz RSP que envía el juego son relativas a la cámara: nunca usarlas para el sol.
 - Árboles: tarjetas cruzadas sin luz con `cvgXAlpha` (alpha test). El mar del área 6 es parte del fondo 2D.
+- Los personajes (Mega Man, NPCs) se dibujan con el combiner `TEXEL0` puro en 2 ciclos (`FCFFFFFF FFFCF238`, sin
+  SHADE): no sirve "sin SHADE = emisivo" para detectar pantallas o lámparas, porque los personajes quedarían sin luz.
+  El terreno usa `SHADE*TEXEL0` (luz horneada en los vértices).
 - El juego corre a 30 fps; RT64 interpola a la tasa de la pantalla si `rr_option` es Display.
 - Huesos de Mega Man: 0 torso, 1 cabeza, 2-4 brazo derecho, 5-7 izquierdo, 8 cadera, 9-11 / 12-14 piernas.
 - Actor de Mega Man: `0x802049B0`; posición s16 (unidades del mundo, -Y arriba) en +0x14/+0x16/+0x18, yaw en
