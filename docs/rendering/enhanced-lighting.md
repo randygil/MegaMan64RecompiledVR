@@ -161,8 +161,9 @@ es leer el depth buffer multisample (composición, cielo). Para el Quest el pres
 - El modo VR quita el cielo 2D del juego (marea en el casco). El parche lo informa al host y este a RT64 con
   `setSkyBackgroundHint`, así que las áreas exteriores tienen sol, sombras y el cielo procedural (fijo en el mundo,
   cómodo en VR) en vez de un fondo plano del color de la niebla.
-- El FOV ancho agranda la esfera del shadow map (texel ~5,9 unidades contra ~2,8 en escritorio): las sombras se ven
-  más blandas. Unas cascadas lo resolverían.
+- El FOV ancho agrandaba la esfera del shadow map (texel ~5,9 unidades contra ~2,8 en escritorio). Ahora el radio se
+  acota (`RT64_LIGHT_SHADOW_MAX_RADIUS` = 3000): con FOV ancho se acorta la distancia de las sombras (~2000 unidades en
+  VR) y el texel queda en ~2,9. Unas cascadas darían ambas cosas a cambio de dibujar los casters dos veces.
 
 ## Preset Low
 
