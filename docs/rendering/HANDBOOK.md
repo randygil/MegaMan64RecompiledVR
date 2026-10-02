@@ -115,7 +115,7 @@ Juego / host (`src/`):
 |---|---|
 | `MM64_AUTOSTART=1` | Salta la pantalla de inicio del launcher. |
 | `MM64_AUTOLOAD=1` | Presiona Start/A con tiempos fijos para cargar la ranura 1 sin foco (`src/game/controls.cpp`). |
-| `MM64_VR_WARP=<area>[,<entrada>[,<carga>]]` | Reemplaza el área de la N-ésima carga (4 = Apple Market, 5 = calle de la ciudad; 14/26 = dungeons, se congelan sin Mega Man). |
+| `MM64_VR_WARP=<area>[,<entrada>[,<carga>]]` | Reemplaza el área de la N-ésima carga. Vistas útiles: 4,0 Apple Market (interior con NPCs), 5,0 calle de la ciudad, 15,0 casa de Roll, 16,0 mar; dungeons (se congelan sin Mega Man, cámara fija): 14,0 pared azul, 14,1 pasillo de piedra con raíces, 14,2 sala con agua, 20,0 metal azul, 26,0 ruina rosada, 26,1 sala blanca. No hay guardados dentro de una dungeon (las tres partidas disponibles empiezan junto al Flutter). |
 | `MM64_RT_TOGGLE_FILE=<ruta>` | Si se crea ese archivo, alterna el path tracer (para comparar el mismo frame). |
 | `MM64_RT_VIEW_AXIS_SIGNS=x,y,z` | Signos de ejes para la rotación de cámara leída de la RAM (depuración). |
 | `RT64_RT_PRINT_VIEW=1` | Imprime traslación de vista, área, sol encendido/apagado. |
@@ -273,6 +273,13 @@ Regla: **todo lo nuevo debe ser agnóstico al juego**.
   sale morado `(0,-1,0)`, no verde.
 - `RT64_LIGHT_PRINT=1` imprime cada 120 frames las escenas de iluminación (rect, sol, cámara, casters, texel); si una
   superficie no está en ninguna escena, o hay más escenas de las esperadas, ahí se ve.
+- Las técnicas en espacio de pantalla (GTAO, sombras de contacto) fallan con superficies vistas casi de canto: en Apple
+  Market una pared junto a la cámara recibía una franja negra del marco de una puerta. Remedios aplicados: ignorar
+  capas a menos de 4 unidades de la superficie, desvanecer el contacto cuando la luz roza la superficie, contacto de la
+  linterna solo en suelos y un AO más suave (radio 120, fuerza 0,8). Comprobar siempre con `DEBUG 6` y `8`.
+- Un "pixel shader caro" con MSAA casi siempre es por leer el depth buffer multisample: medir con
+  `RT64_PRINT_FRAME_TIME=2` antes de optimizar a ciegas.
+- `mm64_build.bat` usa 12 procesos (`MM64_BUILD_JOBS`); con 24 y WSL abierto (9 GB) clang-cl se quedó sin memoria.
 - Probado y descartado: un pre-pase que copiaba la profundidad (la muestra más lejana) a un depth buffer de una
   muestra para que el *replay* del G-buffer tuviera early-Z. En escritorio no ganó nada (el G-buffer no está limitado
   por overdraw) y en VR con MSAA 4x salió más caro: leer un depth buffer MSAA en un shader es caro.

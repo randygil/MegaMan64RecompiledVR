@@ -55,4 +55,8 @@
 | Texture pack HD | prototipo probado | pack de modelos (waifu2x) validado en el juego (texturas de personajes más nítidas); falta el terreno por páginas |
 | Reemplazo de modelos (experimento) | investigado | hook en `func_800805F8`; árbol procedural de 618 triángulos |
 | Rendimiento | en curso | *replays* fusionados hechos; quedan normales suaves O(n²) y casters con alpha test |
-| Dungeons | pendiente | no hay guardado dentro de una dungeon; los warps 14/26 se congelan sin Mega Man |
+| Sombras de contacto | hecho | en el pase de AO; sol completo, linterna solo en suelos |
+| VR | hecho | cielo procedural y sol en exteriores aunque VR quite el cielo 2D; casters de un solo ojo |
+| Perfilado por pase | hecho | `RT64_PRINT_FRAME_TIME=2` |
+| Dungeons | en curso | ambiente frío + linterna cálida con caída marcada; probado con warps de cámara fija (sin guardado dentro); falta probar jugando y luces emisivas |
+| Móvil (Quest) | pendiente | apagado por defecto en Android; preset Low aún pesado en VR (~2,2 ms en la 4070S); ideas en `enhanced-lighting.md` |
