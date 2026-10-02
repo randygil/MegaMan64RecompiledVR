@@ -22,8 +22,10 @@ Por cada proyección perspectiva con depth buffer (una "escena de iluminación";
 2. `recordFramebuffer`: antes del framebuffer se dibuja el **shadow map** (una vez por frame).
 3. Marcador `Lighting` (`submitRasterScene`):
    1. **G-buffer replay** (`LightingGBufferVS/PS`): vuelve a dibujar los opacos con la misma transformación que
-      `RasterVS`, sin depth attachment, descartando los píxeles cuya profundidad no coincide con el depth buffer
-      (tolerancia como los decals). Guarda normal octaédrica (16:16) y, en follaje, el radio de la esfera.
+      `RasterVS`, descartando los píxeles cuya profundidad no coincide con el depth buffer (tolerancia como los
+      decals). Guarda normal octaédrica (16:16) y, en follaje, el radio de la esfera. Tiene su propio depth buffer
+      (D32, `LESS_EQUAL`): donde dos superficies que se cruzan pasan las dos la tolerancia, gana la más cercana y no la
+      última dibujada (sin eso quedaban líneas oscuras en los cruces, p. ej. tarjeta de árbol con su núcleo 3D).
    2. **AO y sombras de contacto** (`LightingAOCS` + `LightingAOBlurCS`): GTAO a media resolución y, en el mismo pase,
       un rayo corto (120 unidades, 8/12/16 pasos según preset) hacia la luz por el depth buffer: si pasa por detrás
       de una superficie visible de menos de 30 unidades de grosor, el píxel queda a la sombra. Blur separable con
@@ -32,6 +34,9 @@ Por cada proyección perspectiva con depth buffer (una "escena de iluminación";
       blending `2 * src * dst` (el factor va dividido por dos y puede aclarar hasta x2). Respeta el alfa (cobertura RDP).
       Con MSAA son dos pasadas: la superficie más cercana de cada píxel y luego la más lejana de los píxeles de borde,
       cada una escribiendo solo sus muestras (`SV_Coverage`); la lejana toma la normal de un vecino que la muestre.
+      También la toma la cercana cuando el G-buffer no la guardó (el borde antialiasado de un recorte: el raster
+      conservó su cobertura pero el G-buffer rechazó su alfa); la normal sacada de la profundidad mezclaría las dos
+      superficies y dejaría una línea oscura en el borde.
    4. **Cielo procedural** (`LightingSky`, módulo aparte, `procedural-sky.md`): reemplaza los píxeles de fondo que son cielo.
 4. Translúcidos en su orden original.
 5. Marcador `PostScene`: **efectos de post** (`PostEffects`, módulo aparte, `post-effects.md`: bloom, rayos de luz,
@@ -92,8 +97,8 @@ daba franjas negras.
 ## Normales
 
 - Vértices con iluminación RSP: su normal. Sin iluminación (Mega Man 64 nunca la usa): **normales suaves** soldadas
-  por posición (`RSPSmoothNormalCS`, ángulo `RT64_LIGHT_SMOOTH_NORMALS` = 75°, draw calls de hasta 256/1024 triángulos
-  según preset). Sigue siendo O(n²) por draw call, pero recorre los triángulos en bloques de 64 cargados en memoria
+  por posición (`RSPSmoothNormalCS`, ángulo `RT64_LIGHT_SMOOTH_NORMALS` = 75°, draw calls de hasta 512/1024 triángulos
+  según preset; Medium subió de 256 a 512 para los núcleos 3D de los árboles). Sigue siendo O(n²) por draw call, pero recorre los triángulos en bloques de 64 cargados en memoria
   compartida y todas las draw calls del frame van en un solo dispatch (tabla de grupos: rango, primer triángulo,
   pliegue): 0,22 → 0,08 ms en el bosque. Si no, la normal de la cara.
 - **Follaje** (recortes sin luz con textura): *sphere impostor*. El centro de cada tarjeta es el punto medio de la
