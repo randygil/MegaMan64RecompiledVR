@@ -431,6 +431,17 @@ void zelda64::set_path_tracing_enabled(bool enabled) {
     zelda64::renderer::set_path_tracing_enabled(enabled);
 }
 
+// The 3D tree cores are an experiment: from the usual camera at ground level the painted cards look more natural.
+static std::atomic<bool> trees_3d_enabled = false;
+
+bool zelda64::get_3d_trees_enabled() {
+    return trees_3d_enabled;
+}
+
+void zelda64::set_3d_trees_enabled(bool enabled) {
+    trees_3d_enabled = enabled;
+}
+
 bool save_graphics_config(const std::filesystem::path& path) {
     nlohmann::json config_json{};
     ultramodern::to_json(config_json, ultramodern::renderer::get_graphics_config());
@@ -439,6 +450,7 @@ bool save_graphics_config(const std::filesystem::path& path) {
     config_json["pt_sky_option"] = path_tracing_sky ? "Enhanced" : "Original";
     config_json["el_option"] = enhanced_lighting_enabled ? "On" : "Off";
     config_json["el_quality_option"] = lighting_quality_names[lighting_quality];
+    config_json["trees_option"] = trees_3d_enabled ? "3D" : "Original";
     return save_json_with_backups(path, config_json);
 }
 
@@ -467,6 +479,8 @@ bool load_graphics_config(const std::filesystem::path& path) {
             zelda64::set_lighting_quality(i);
         }
     }
+
+    zelda64::set_3d_trees_enabled(config_json.value("trees_option", std::string("Original")) == "3D");
     return true;
 }
 

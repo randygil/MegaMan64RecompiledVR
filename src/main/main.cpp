@@ -50,6 +50,7 @@
 #include "../../patches/misc_funcs.h"
 #include "../../patches/mouse_camera.h"
 #include "../../patches/vr.h"
+#include "../../patches/tree3d.h"
 #include "recomp_vr.h"
 
 #ifdef _WIN32
@@ -715,6 +716,7 @@ int main(int argc, char** argv) {
     REGISTER_FUNC(recomp_vr_set_stereo);
     REGISTER_FUNC(recomp_vr_haptic);
     REGISTER_FUNC(recomp_vr_report_sky);
+    REGISTER_FUNC(recomp_get_3d_trees_enabled);
     //REGISTER_FUNC(recomp_get_inverted_axes);
     //REGISTER_FUNC(recomp_get_analog_inverted_axes);
 

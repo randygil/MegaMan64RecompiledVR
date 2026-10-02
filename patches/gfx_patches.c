@@ -4,6 +4,7 @@
 #include "gfx_patches.h"
 #include "mouse_camera.h"
 #include "vr.h"
+#include "tree3d.h"
 
 bool skip_all_interpolation = FALSE;
 bool skip_terrain_interpolation = FALSE;
@@ -417,6 +418,8 @@ RECOMP_PATCH void func_800276EC_2AEC(s32 arg0) {
         // recomp_printf("-----Begin Frame----- \n");
         //@recomp check if the camera has jumped this frame
         recomp_check_camera_jump();
+        //@recomp 3D cores for the trees of the loaded terrain (patches/tree3d.c).
+        tree3d_update();
         do {
             temp_v0 = gfxContext->fadeoutTimer;
             if (temp_v0 != 0) {

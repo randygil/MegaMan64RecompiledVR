@@ -36,6 +36,9 @@ namespace zelda64 {
     // Whether outdoor scenes use the path tracer's procedural sky instead of the game's.
     bool get_path_tracing_sky();
     void set_path_tracing_sky(bool enhanced);
+    // Whether the crossed card trees of the forests get a solid 3D core (patches/tree3d.c).
+    bool get_3d_trees_enabled();
+    void set_3d_trees_enabled(bool enabled);
     void set_debug_mode_enabled(bool enabled);
     
     enum class FilmGrainMode {

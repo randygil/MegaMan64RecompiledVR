@@ -4,7 +4,7 @@
     <body>
         <form class="config__form">
             <div class="config__hz-wrapper">
-                <div class="config__wrapper" data-event-mouseout="set_cur_config_index(-1)">
+                <div class="config__wrapper" style="overflow-y: auto;" data-event-mouseout="set_cur_config_index(-1)">
                     <div class="config-option" data-event-mouseover="set_cur_config_index(0)">
                         <label class="config-option__title">Resolution</label>
                         <div class="config-option__list">
@@ -412,7 +412,7 @@
                                 data-checked="pt_sky_option"
                                 value="Enhanced"
                                 id="pts_enhanced"
-                                style="nav-up: #pte_off; nav-down: #apply_button"
+                                style="nav-up: #pte_off; nav-down: #trees_3d"
                             />
                             <label class="config-option__tab-label" for="pts_enhanced">Enhanced</label>
                             <input type="radio"
@@ -422,9 +422,35 @@
                                 data-checked="pt_sky_option"
                                 value="Original"
                                 id="pts_original"
-                                style="nav-up: #pte_subtle; nav-down: #apply_button"
+                                style="nav-up: #pte_subtle; nav-down: #trees_original"
                             />
                             <label class="config-option__tab-label" for="pts_original">Original</label>
+                        </div>
+                    </div>
+
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(12)">
+                        <label class="config-option__title">Trees</label>
+                        <div class="config-option__list">
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(12)"
+                                name="trees-option"
+                                data-checked="trees_option"
+                                value="3D"
+                                id="trees_3d"
+                                style="nav-up: #pts_enhanced; nav-down: #apply_button"
+                            />
+                            <label class="config-option__tab-label" for="trees_3d">3D</label>
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(12)"
+                                name="trees-option"
+                                data-checked="trees_option"
+                                value="Original"
+                                id="trees_original"
+                                style="nav-up: #pts_original; nav-down: #apply_button"
+                            />
+                            <label class="config-option__tab-label" for="trees_original">Original</label>
                         </div>
                     </div>
 
@@ -478,6 +504,9 @@
                         <br />
                         When <b>Path Tracing</b> is on it replaces this lighting.
                     </p>
+                    <p data-if="cur_config_index == 12">
+                        <b>3D</b> (experimental) gives the trees of the forests a solid trunk and tiered crown inside their painted cards, so they keep their volume when seen from above or in VR, and the lighting can shade them. <b>Original</b> uses only the painted crossed cards. You can also use <b>F4</b> to toggle it.
+                    </p>
                     <p data-if="cur_config_index == 11">
                         Cost of the enhanced lighting. <b>Low</b> is meant for integrated GPUs, handhelds and standalone VR headsets: smaller shadow maps, no ambient occlusion or contact shadows and simpler effects. <b>Ultra</b> uses the sharpest shadows and the best ambient occlusion.
                     </p>
@@ -496,7 +525,7 @@
                         data-attrif-disabled="!options_changed"
                         onclick="apply_options"
                         id="apply_button"
-                        style="nav-up:#pts_original"
+                        style="nav-up:#trees_original"
                     >
                         <div class="button__label">Apply<span class="prompt-font-sm">{{gfx_help__apply}}</span></div>
                     </button>

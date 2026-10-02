@@ -814,6 +814,12 @@ public:
                 zelda64::set_enhanced_lighting_enabled(in.Get<std::string>() == "On");
                 zelda64::save_config();
             });
+        constructor.BindFunc("trees_option",
+            [](Rml::Variant& out) { out = zelda64::get_3d_trees_enabled() ? "3D" : "Original"; },
+            [](const Rml::Variant& in) {
+                zelda64::set_3d_trees_enabled(in.Get<std::string>() == "3D");
+                zelda64::save_config();
+            });
         constructor.BindFunc("el_quality_option",
             [](Rml::Variant& out) {
                 static const char* names[] = { "Low", "Medium", "High", "Ultra" };
@@ -1197,6 +1203,13 @@ void recompui::refresh_path_tracing_option() {
     if ((lighting_value != last_lighting_value) && graphics_model_handle) {
         graphics_model_handle.DirtyVariable("el_option");
         last_lighting_value = lighting_value;
+    }
+
+    static bool last_trees_value = false;
+    const bool trees_value = zelda64::get_3d_trees_enabled();
+    if ((trees_value != last_trees_value) && graphics_model_handle) {
+        graphics_model_handle.DirtyVariable("trees_option");
+        last_trees_value = trees_value;
     }
 }
 

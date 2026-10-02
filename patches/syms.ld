@@ -64,3 +64,4 @@ recomp_vr_get_frame = 0x8F0000F4;
 recomp_vr_set_stereo = 0x8F0000F8;
 recomp_vr_haptic = 0x8F0000FC;
 recomp_vr_report_sky = 0x8F000100;
+recomp_get_3d_trees_enabled = 0x8F000104;

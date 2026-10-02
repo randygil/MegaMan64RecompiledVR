@@ -70,6 +70,10 @@ extern "C" void recomp_get_mouse_camera_aim(uint8_t* rdram, recomp_context* ctx)
     _return<s32>(ctx, recomp::get_mouse_camera_aim_held() ? 1 : 0);
 }
 
+extern "C" void recomp_get_3d_trees_enabled(uint8_t* rdram, recomp_context* ctx) {
+    _return<s32>(ctx, zelda64::get_3d_trees_enabled() ? 1 : 0);
+}
+
 extern "C" void recomp_get_mouse_camera_wheel(uint8_t* rdram, recomp_context* ctx) {
     _return<s32>(ctx, recomp::consume_mouse_camera_wheel());
 }
