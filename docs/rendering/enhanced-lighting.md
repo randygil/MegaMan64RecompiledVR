@@ -117,7 +117,7 @@ daba franjas negras.
 | `SHADOW_SIZE`, `SHADOW_DISTANCE`, `SHADOW_CASTER_DISTANCE` | por preset, 4000, 6000 | Tamaño y cobertura del shadow map. |
 | `SHADOW_STRENGTH`, `SHADOW_BIAS`, `SHADOW_NORMAL_OFFSET`, `SHADOW_SOFTNESS` | 1, 1, 1,5, 1 | Sombras (bias y offset en texels). |
 | `FOLIAGE_WRAP`, `FOLIAGE_TRANSLUCENCY`, `FOLIAGE_SHADOW`, `FOLIAGE_SHADOW_OFFSET` | 0,8, 0,6, 0,35, 1 | Follaje. |
-| `AO_RADIUS`, `AO_STRENGTH`, `AO_POWER`, `AO_SLICES`, `AO_DIRECT`, `AO_FOLIAGE` | 120, 0,8, 1,3, por preset, 0,35, 0,3 | Oclusión ambiental (antes 160/0,9/1,5: oscurecía de más los marcos y esquinas junto a la cámara). Ignora capas a menos de 4 unidades sobre la superficie (carteles, decals como geometría propia). |
+| `AO_RADIUS`, `AO_STRENGTH`, `AO_POWER`, `AO_SLICES`, `AO_DIRECT`, `AO_FOLIAGE` | 120, 0,8, 1,3, por preset, 0,35, 0,3 | Oclusión ambiental (antes 160/0,9/1,5: oscurecía de más los marcos y esquinas junto a la cámara). Ignora capas a menos de `AO_MIN_HEIGHT` = 12 unidades sobre la superficie (carteles, pósters, decals como geometría propia): con 4, el borde de un póster de Apple Market, visto casi de canto, dejaba una franja oscura en la pared. |
 | `GBUFFER`, `SMOOTH_NORMALS`, `SMOOTH_NORMALS_MAX` | 1, 75, por preset | Buffer de normales y suavizado. |
 | `MERGE_DRAWS` | 1 | Dibuja juntos los draw calls consecutivos en los *replays*. |
 | `CUTOUT_AA` | 1 | Alpha to coverage de los recortes con MSAA. |
@@ -208,8 +208,9 @@ cielo a un cuarto de resolución, post reducido a grading (sin bloom ni rayos), 
 
 - Solo proyectan sombra los objetos que el juego dibuja (lo que queda fuera de cámara no existe para el HLE).
 - La niebla del juego se aproxima por píxel con los parámetros del primer draw call con niebla.
-- En bordes con MSAA se ilumina cada superficie por separado; quedan líneas muy tenues donde una superficie lejana no
-  tiene vecinos que la muestren (toma la normal de la profundidad).
+- En bordes con MSAA se ilumina cada superficie por separado. Una superficie lejana que ningún vecino muestra (se ve
+  solo por una grieta, como las costuras entre los quads de una pared) conserva su color original: antes tomaba la
+  normal de la profundidad y salían puntos oscuros en las costuras.
 - Con el menú del recomp abierto aparecen líneas negras dentadas en los bordes del camino de tierra. **No es de la
   iluminación** (pasa igual con ella apagada): el fondo del menú deja ver el canal alfa del color target, que guarda la
   cobertura del RDP en los bordes de las texturas.
