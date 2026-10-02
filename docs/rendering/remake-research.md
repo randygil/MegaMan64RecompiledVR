@@ -467,10 +467,20 @@ Escala usada: esfuerzo para un agente de código con este repo; riesgo = probabi
   Mega Man de ~150 unidades, los árboles grandes del bosque parecen más altos que 640, así que probablemente no son
   esas tarjetas sino objetos estáticos (camino de huesos, `func_8003AB60`), que se cambiarían con el hook (A1). Entre los
   modelos de 1 hueso y pocos triángulos que revisé (`models_survey.json`: 76–90, 97, 102–109, 312–317) no hay árboles
-  (son cristales, nubes de humo, paneles). Siguiente paso: identificar en el juego, con el inspector de RT64 (F1, modo
-  desarrollador), qué draw call y qué grupo de matrices (`TAG_TERRAIN` o `TAG_STATIC_ACTOR`) dibuja un árbol, y desde
-  ahí su modelo o su sección del terreno. Script de exploración: `tree_survey.py <área> <ranura>` (scratchpad de la
-  sesión; recorre los grupos y cuenta triángulos por sección de material).
+  (son cristales, nubes de humo, paneles).
+- **Resuelto**: un print temporal en la clasificación de follaje de la iluminación raster mostró que todo el follaje
+  del bosque usa el tag `TERRAIN(x,z)` (tipo `0xA`) y quads de 2 triángulos, así que los árboles **son terreno**. En el
+  archivo de terreno del área 3, los registros 39–54 (y otros) llevan **una sola tarjeta cada uno**, partida en dos
+  mitades (y −640..−320 y −320..0) de 192 o 384 de ancho: el 41 y el 42 son la misma tarjeta en el eje z y en el x;
+  45–48 son cuatro tarjetas alrededor de un centro (desplazadas ±96); 53/54, diagonales. Un árbol se arma colocando
+  varios registros en la misma posición del arreglo de tiles (`D_801B5088`, `Tile[1710]`). Por eso no aparecen pares
+  cruzados dentro de un mismo registro (`tree_detect.py` encontró 1 de 292 quads).
+- Siguiente paso para (A3): decodificar el arreglo de tiles para encontrar las posiciones con varios registros de
+  tarjeta y reemplazarlas como unidad (por ejemplo, dibujar el árbol 3D desde el primer registro y dejar en `G_NOOP`
+  los quads de los demás). Las DL de esas tarjetas viven en el archivo de terreno cargado; su puntero queda en
+  `0x800BD9A0` (y en `0x801AF434`) y el de los vértices (tipo `0x12`, segmento 5) en `0x800BD9A4` (`0x801AF430`), lo
+  que escribe `func_80035CA0` en `0x800361CC`/`0x800361A0`. Scripts: `tree_survey.py` y `tree_detect.py` (scratchpad
+  de la sesión).
 
 ### E4. Cielo en HD
 
