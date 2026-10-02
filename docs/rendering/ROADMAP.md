@@ -45,14 +45,14 @@
 | Shadow map + alpha test | hecho | mapa estable alineado al mundo, PCF por preset |
 | G-buffer de normales (replay) | hecho | normales suaves, *sphere impostor* en follaje |
 | AO | hecho | GTAO a media resolución + blur bilateral |
-| Composición (sol, cielo, AO, interiores) | hecho | linterna en interiores; ajustar dungeons |
+| Composición (sol, cielo, AO, interiores) | hecho | linterna sobre Mega Man en interiores; tinte de cielos no diurnos |
 | Cielo procedural raster | hecho | `LightingSky`, `procedural-sky.md`; opción Sky del menú; solo reemplaza cielos diurnos que reconoce enteros (violeta, menta y atardeceres se conservan) y tiñe la luz con los cielos no diurnos |
 | God rays, bloom, grading, CAS | hecho | `PostEffects`, `post-effects.md`; intensidad = opción Effects |
 | Menú y presets | hecho | Enhanced Lighting On/Off (F3), Lighting Quality Low–Ultra, Effects y Sky compartidos con el PT |
 | MSAA | hecho | composición por superficie (`SV_Coverage`), alpha to coverage en recortes |
 | D3D12 | hecho | bug de samplers inmutables de plume corregido; iluminación igual que en Vulkan (PT en D3D12 sin probar) |
-| Árboles | en curso | volumen + sombras de hojas + translucidez + bordes con AA hechos; PT sin vaivén/ruido; falta viento por vértice y árboles 3D |
-| Texture pack HD | prototipo probado | pack de modelos (waifu2x) validado en el juego (texturas de personajes más nítidas); falta el terreno por páginas |
+| Árboles | en curso | volumen + sombras de hojas + translucidez + bordes con AA hechos; PT sin vaivén/ruido; árboles 3D: investigado (son registros de terreno de una tarjeta cada uno, colocados juntos por el arreglo de tiles; ver `remake-research.md` E3) |
+| Texture pack HD | prototipo probado | pack de modelos (waifu2x) y pack de terreno por páginas de Apple Market validados en el juego (nítidos, sin costuras); extendiendo el terreno a todas las áreas |
 | Reemplazo de modelos (experimento) | investigado | hook en `func_800805F8`; árbol procedural de 618 triángulos |
 | Rendimiento | en curso | *replays* fusionados, normales suaves en bloques de memoria compartida y un solo dispatch (0,22 → 0,08 ms); quedan los casters con alpha test |
 | Sombras de contacto | hecho | en el pase de AO; sol completo, linterna solo en suelos |
