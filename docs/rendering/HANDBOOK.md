@@ -86,7 +86,7 @@ Scripts en `C:\Users\Usuario\Devel\tools` (PowerShell; llamarlos con `powershell
 | `light_tune_api.ps1 -Api D3D12 -Sets @(...)` | Igual que `light_tune.ps1` con otra API gráfica; restaura `graphics.json` al terminar. |
 | `vr_tune.ps1 -Sets @(...) [-Area n]` | Igual que `light_tune.ps1` con el build VR de escritorio en modo debug (los dos ojos lado a lado, sin casco; `Downloads\MegaMan64Recompiled-VR`). Con warps de área a veces termina en el menú de ítems; sin warp (bosque) funciona. |
 | `area_scan.ps1 -Areas @("14,0","26,0",...)` | Un arranque por área con el debug warp; captura cada una y arma `shots\scan_sheet.png` (para buscar dungeons). |
-| `galleryuild.py` | Arma la página de comparaciones antes/después (`template.html` + `config.json`, capturas de `shotsinal*.png` recortadas y embebidas en JPEG). Publicada como artefacto "Kattelox con luz nueva" (claude.ai/artifact/EUFQ2QLpsoECQGFvhF129B); para actualizarla, volver a capturar, editar `config.json` y republicar el mismo archivo. |
+| `gallery\build.py` | Arma la página de comparaciones antes/después (`template.html` + `config.json`, capturas de `shots\final\*.png` recortadas y embebidas en JPEG). Publicada como artefacto "Kattelox con luz nueva" (claude.ai/artifact/EUFQ2QLpsoECQGFvhF129B); para actualizarla, volver a capturar, editar `config.json` y republicar el mismo archivo. |
 | `desktop_vr_build.sh` | Compila los parches (zig como compilador MIPS), corre N64Recomp y el build VR de escritorio. Si solo cambia C++, basta `cfg_vr.bat` (ver el script). |
 | `city_test.ps1`, `vr_run.ps1` | Pruebas del build VR de escritorio (simulador o modo debug). |
 
