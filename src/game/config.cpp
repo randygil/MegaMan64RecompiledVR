@@ -367,9 +367,19 @@ void reset_graphics_options() {
     ultramodern::renderer::set_graphics_config(new_config);
 }
 
+// The enhanced lighting hasn't been measured on mobile GPUs yet, so Android starts without it (and with the lowest
+// quality when it's turned on).
+#ifdef __ANDROID__
+constexpr bool enhanced_lighting_default = false;
+constexpr int lighting_quality_default = 0;
+#else
+constexpr bool enhanced_lighting_default = true;
+constexpr int lighting_quality_default = 1;
+#endif
+
 static std::atomic<bool> path_tracing_enabled = false;
-static std::atomic<bool> enhanced_lighting_enabled = true;
-static std::atomic<int> lighting_quality = 1;
+static std::atomic<bool> enhanced_lighting_enabled = enhanced_lighting_default;
+static std::atomic<int> lighting_quality = lighting_quality_default;
 static const char* lighting_quality_names[] = { "Low", "Medium", "High", "Ultra" };
 
 bool zelda64::get_enhanced_lighting_enabled() {
@@ -450,8 +460,8 @@ bool load_graphics_config(const std::filesystem::path& path) {
     }
 
     zelda64::set_path_tracing_sky(config_json.value("pt_sky_option", std::string("Enhanced")) != "Original");
-    zelda64::set_enhanced_lighting_enabled(config_json.value("el_option", std::string("On")) == "On");
-    const std::string quality = config_json.value("el_quality_option", std::string("Medium"));
+    zelda64::set_enhanced_lighting_enabled(config_json.value("el_option", std::string(enhanced_lighting_default ? "On" : "Off")) == "On");
+    const std::string quality = config_json.value("el_quality_option", std::string(lighting_quality_names[lighting_quality_default]));
     for (int i = 0; i < 4; i++) {
         if (quality == lighting_quality_names[i]) {
             zelda64::set_lighting_quality(i);
@@ -588,6 +598,12 @@ void zelda64::load_config() {
 
     if (!load_graphics_config(graphics_path)) {
         reset_graphics_options();
+
+        // The renderer only learns these options through their setters.
+        zelda64::set_path_tracing_effects(zelda64::get_path_tracing_effects());
+        zelda64::set_path_tracing_sky(zelda64::get_path_tracing_sky());
+        zelda64::set_enhanced_lighting_enabled(enhanced_lighting_default);
+        zelda64::set_lighting_quality(lighting_quality_default);
         save_graphics_config(graphics_path);
     }
 
