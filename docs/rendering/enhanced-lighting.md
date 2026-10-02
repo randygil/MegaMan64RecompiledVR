@@ -186,6 +186,15 @@ en un Adreno 650 sería del orden de decenas de ms: demasiado. Ideas para un pre
 profundidad; el follaje pierde el volumen), composición de una pasada sin el tratamiento por superficie del MSAA,
 cielo a un cuarto de resolución, post reducido a grading (sin bloom ni rayos), shadow map de 1024 solo cada dos frames.
 
+## Ideas de rendimiento evaluadas (sin implementar)
+
+- **Shadow map cada N frames con interpolación**: con 165 Hz RT64 dibuja ~5 frames por frame del juego; la geometría
+  interpolada se mueve poco entre frames, así que redibujar el shadow map en frames alternos (reusando su matriz, para
+  que la búsqueda siga siendo exacta) ahorraría ~0,15–0,2 ms con un retraso imperceptible. Sin interpolación (30/60
+  fps) el retraso sí se notaría en personajes en movimiento: habría que activarlo solo cuando la tasa de render supera
+  bastante a la del juego.
+- **Pre-pase de profundidad para el G-buffer**: probado, no ganó (ver HANDBOOK, lecciones).
+
 ## Portabilidad
 
 - Genérico: shaders `Lighting*.hlsl/.hlsli`, `rt64_lighting_params.h`, `computeStableShadowMatrix`, la composición,
