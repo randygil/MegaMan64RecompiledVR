@@ -525,7 +525,35 @@ Escala usada: esfuerzo para un agente de código con este repo; riesgo = probabi
     direcciones, ventanas, catálogo de registros, detalle de cada registro de árbol con su entrada de grupo, sus DL y el
     `TRI2` de cada quad, y la rejilla con el registro de cada celda), `trees.csv` (una fila por árbol colocado),
     `map.png` (vista cenital texturizada) y `cards.png` (texturas de las tarjetas).
-- **Plan del parche para (A3)** (C en `patches/`, compilado con zig; todavía sin implementar ni probar):
+- **Implementado (2026-10-02), variante "núcleo"** (más simple que el plan de abajo): cada registro de árbol del área 3
+  (21: star3 39–40 y T 41–60) conserva sus tarjetas y recibe un **núcleo sólido**: una superficie de revolución de 12
+  segmentos que sigue la silueta pintada nivel por nivel (cintura, mitad de la ladera, máximo y una repisa que vuelve
+  hacia adentro), con la textura de la misma ventana (UV en zigzag cada 4 segmentos, cerca de la densidad de la
+  tarjeta), sombra de vértice 165 arriba → 115 abajo y un tronco. Material explícito `0x800BDB30` (opaco a dos caras).
+  - Generador: `tree3d_gen.py` (usa `tile_layout.py`; escribe `patches/tree3d_area3.c` con `Vtx`, DL y la tabla
+    `{registro, offset de la entrada de grupo, dl1, dl2, DL del núcleo}`, y vistas previas con un rasterizador propio).
+  - Parche: `patches/tree3d.c`, llamado cada cuadro desde `func_800276EC` (sin gancho nuevo en `us.rev1.toml`): si la
+    entrada todavía tiene sus DL originales, cambia `dl2` por un envoltorio `{G_DL dl2 original, G_DL núcleo,
+    G_ENDDL}` (solo `G_DL`/`G_ENDDL`, que los recorridos de CPU de los modos de fundido copian sin seguir). Cada carga
+    de área trae una copia nueva del archivo, así que se vuelve a parchear sola. Con la opción apagada devuelve el `dl2`
+    original. Funciona igual en VR (misma tarea de celda, mismo grupo de matrices).
+  - Opción **"Trees"** (3D / Original, por omisión Original, **F6**), `graphics.json` `trees_option`, función del host
+    `recomp_get_3d_trees_enabled` (`0x8F000104`).
+  - Problemas resueltos en el camino: líneas oscuras en los cruces tarjeta/núcleo (el replay del G-buffer no tenía
+    prueba de profundidad y ganaba la última superficie dibujada: ahora tiene su propio D32); núcleos con normales
+    planas (pasaban el límite de 256 triángulos por draw call de las normales suaves en Medium: subió a 512); tapas
+    con el winding invertido; aspecto de "melón" a rayas con un anillo por fila (cambiado por anillos por nivel).
+  - Costo: dentro del ruido de medición en el bosque (~0,1–0,15 ms de GPU con la iluminación Medium).
+  - **Veredicto:** desde la cámara habitual (a ras del suelo, detrás de Mega Man) las tarjetas con las normales de
+    esfera de la iluminación se ven más naturales; el núcleo se lee como una pagoda de discos apilados y, a distancia,
+    con bandas. Como las tarjetas se cruzan en el centro, la mitad delantera de cualquier núcleo tapa el centro de las
+    tarjetas: con escala 0,62 quedaba un huso oscuro dentro del árbol pintado. Queda como opción experimental; ayuda
+    vista desde arriba y en VR.
+  - Siguientes ideas: (1) árbol completo con racimos de hojas (`tree_gen.py`) que reemplace las tarjetas (el plan de
+    abajo); (2) UV planar para el núcleo (de frente coincidiría con la tarjeta que tapa); (3) "más tarjetas" giradas;
+    (4) las demás áreas con bosque (8, 10, 11, 16, 17, 18, 22, 24, 27, 30): `tree3d_gen.py --area N` y una tabla por
+    área en `tree3d.c`.
+- **Plan del parche para (A3)** (C en `patches/`, compilado con zig; el de reemplazo completo, todavía sin implementar):
   1. **Gancho**: `[[patches.hook]]` en `func_80035CA0_110A0` con `before_vram = 0x800361D4` (solo la rama del tipo
      `0x11`; `$v0` = archivo de terreno y los vértices ya están cargados) que llame a
      `tree3d_on_terrain_loaded(terrain)`, guardando y restaurando `ctx` como los demás ganchos. Cada carga de área
@@ -706,3 +734,85 @@ powershell -ExecutionPolicy Bypass -File install_pack.ps1 [-Uninstall]
 Prueba en el juego: con el juego cerrado, copiar el `.rtz` a `%LOCALAPPDATA%\MegaMan64Recompiled\mods\` (o usar `install_pack.ps1`, que no hace nada si el juego está abierto), poner `"developer_mode": true` en `graphics.json`, entrar con `MM64_VR_WARP=4,0` y alternar con F4. Para medir la coincidencia: F1 → Textures → "Start dumping textures", recorrer el área, detener el volcado y pasar la carpeta a `validate_terrain_dump.py`, que informa qué porcentaje de las ventanas de terreno volcadas está en el pack y clasifica cada falla (ventana desconocida = replay de DL; índices distintos = página; paleta distinta = CLUT o arreglo de entradas 0x0000, usado por 195 ventanas marcadas en `windows.csv`).
 
 **Pendiente para todas las áreas:** según `survey_areas.py`, 28 áreas tienen terreno en el sub 0 y en 26 se resuelven todas las páginas y CLUT con la entrada 0 y el sub del banco que mejor cubre (unas 11.700 ventanas). Falta (1) portar `func_80072E10` por área, entrada y estado de la historia en lugar de elegir el sub del banco por cobertura (varias áreas se resuelven con más de un sub y la paleta puede cambiar); (2) las áreas 5, 6 y 12 (ciudad) no tienen terreno en el sub 0 y las 1 y 23 quedan incompletas; (3) los grupos con el bit 0x8000 (quads procedurales, `func_8007CC94` / `func_8007C450`); (4) páginas y CLUT animadas por overlays (cada cuadro es otro hash: congelar la animación o generar cada cuadro). El pase de sombra (TLUT negra `0x800BD9B4`) no se reemplaza a propósito. Riesgos: mezcla de subtexturas vecinas del atlas en los bordes de ventanas de 2 o 3 texeles y las 2 ventanas que dependen del heap.
+
+### 9.1 Todas las áreas: puerto de `func_80072E10`, secuencias de carga y pack combinado
+
+Continuación de la sección 9 (2026-10-02). Todo vive en `C:\Users\Usuario\Devel\tools\upscale\terrain\`: `mm64_areas.py` (puerto y secuencias), `build_all_terrain.py` (pipeline completo con un solo comando) e `install_all.ps1`. No se ejecutó el juego, no se compiló el proyecto y no se instaló nada en `mods`.
+
+**Qué lee y qué escribe `func_80072E10`** (`a0 = 0x801BC3E8`, bloque de estado del juego):
+
+- Lee el área (`s8 0x801BC438`, la petición de carga; el área cargada es `s16 0x801BC450`), la entrada (`s8 0x801BC439`), el byte de progreso de la historia (`s8 0x801BC43A`, comparado contra 0..12) y banderas de evento del arreglo de bits `0x802055A8` (`func_8006033C`: `byte[n >> 3] & (0x80 >> (n & 7))`). Solo cuatro áreas consultan banderas: 5 (`0x001 0x002 0x200 0x204 0x206 0x212 0x213`), 6 (`0x630`), 11 (`0x01B 0x01C`) y 12 (`0x030`).
+- Escribe `0x801ACA58` = área, `0x801ACA59` = sub del área de la segunda llamada (por omisión la tabla de bytes `0x800B37FC[área][entrada + 1]`; 0 o 0xFF = no hay segunda llamada), `0x801ACA5A` = sub de la primera llamada cuando difiere del área (solo el área 12, con 1) y `0x801ACA5B` = sub del banco (grupo 0x26) + 1.
+- Banco por área: 3 → sub 0 (entradas 0 a 2), 4 → 1 (E0), 5 → 2 (E0 y E1), 6 → 3, 4 o 5 (E0, E1, E2), 7 → 6 (E5), 8 → 7 (E0), 10 → 8 (E0), 11 → 9 o 10, 13 → 11 (E0 y E5), 15 → 12 (E2), 16 → 13 (E0), 19 → 17 (sub 1 o 2), 22 → 14, 27 → 16 (sub 1 o 7). Además `func_80036340` carga **siempre todo el banco sub 15 para el grupo 12**. El resto de las áreas no usa banco.
+- `func_80036340(grupo, sub)`: con sub 0 usa `0x801ACA5A` si difiere de `0x801ACA58`; el grupo 12 carga primero el banco 15; si sub != 0 y `0x801ACA5B` != 0 carga el banco `0x801ACA5B − 1` y lo pone en 0; al final carga el sub del grupo. El último archivo tipo 0x11 cargado es el terreno (`func_80035CA0` guarda un solo puntero, `0x801AF434` / `0x800BD9A0`; el 0x12 es el de vértices).
+- **Reentrada**: `func_80073828` corre justo después de `func_80073510`, vuelve a llamar a `func_80072E10` y, si `0x801ACA59` difiere del sub actual (`s16 0x801BC452`), carga banco + sub sin liberar nada. Si el área no cambió (otra entrada de la misma área) es la única carga, así que las páginas y CLUT de la entrada anterior siguen ahí.
+- **Cargas de overlays** con argumentos constantes (`func_80036340` / `func_800739B0`): área 5 → sub 4; 6 → 11 y 9; 11 → banco 10 + subs 7 y 2, banco 9 + subs 5 y 6; 13 → 4; 23 → 2 y 1; 25 → 3 y 4; 26 → 4 a 8 (salas con terreno propio); 30 → 1.
+- La partida de prueba (flash, 0x2000 bytes por ranura, `loadSaveData` copia 0x1800 a `0x80193C70` y `func_80074A9C` pasa los offsets 0x94/0x95/0x96 a `0x801BC438..A`) está en **área 3, entrada 2, historia 0**: carga `3.0 + banco 0 + 3.1`. Es el principio del juego, no una partida a mitad de camino.
+
+`mm64_areas.area_sequences(área)` recorre todas las entradas de la tabla, la historia −1..12 y todas las combinaciones de banderas del área, y produce 100 secuencias "frescas" (cambio de área), 244 de reentrada (fresca + banco/sub de otra entrada) y 28 con cargas de overlay; se descartan las cargas sin texturas ni terreno. Las frescas aportan todos sus grupos resueltos; las derivadas solo los grupos que ninguna fresca resuelve, para no multiplicar variantes que no se ven. `mm64_terrain.area_load_sequence` también usa el puerto (con historia 0 por omisión), y `build_terrain_pack.py --area 4` sigue dando las mismas 946 ventanas. `survey_areas.py` queda obsoleto: su "mejor banco" por cobertura era incorrecto (por ejemplo, el banco 15 trae su propio terreno y reemplazaba el de las áreas 11, 19 y 27).
+
+**La ciudad.** Las áreas 5 y 6 no tienen terreno en el sub 0 porque lo guardan en el banco: el área 5 dibuja con el terreno del banco sub 2 (E0 y E1; el sub 0 del área aporta 23 páginas y el paquete de CLUT) y con terrenos propios en los subs 3 (E2) y 5 (E4); estos dos toman sus CLUT `(0x80,0x1F3)`, `(0x80,0x1F2)`, `(0,0x1FD)`... del banco 2, así que solo se resuelven al llegar caminando desde E0/E1 (reentrada). El área 6 usa los terrenos de los bancos 3, 4 y 5 (E0, E1, E2), del sub 4 (E4) y del sub 11 (overlay). El área 12 dibuja solo con el banco 15; sus páginas muestran pasto, árboles y una compuerta mecánica, así que no parece ser una calle de la ciudad. Resultado: área 5, 2903 grupos en 3 terrenos, todos resueltos, 901 ventanas; área 6, 4192 grupos en 5 terrenos, 4045 resueltos, 1301 ventanas; área 12, 924 grupos, 277 ventanas. Los 147 grupos del área 6 que nunca se resuelven usan la página `(0x280,0x100,0x20,0x80)` y las CLUT `(0,0x1F6)` / `(0,0x1F2)`, que solo suben subs de otras áreas: el juego los dibujaría con el estado anterior, así que probablemente no se ven.
+
+**Grupos 0x8000.** `func_8007CC94` dibuja quads sueltos: la palabra 1 del grupo es el primer vértice y la 2 la cantidad de quads (4 vértices de 16 bytes del archivo 0x12); `func_8007C108` toma la caja de las UV (`min`/`max` de s y t `>> 6`, par, al menos 2) y se emite `SETTILE` t7 CI 8b + `LOADTILE` + `SETTILE` t0 CI 4b + `SETTILESIZE`. El pipeline arma ese mismo DL sintético por quad: 174 ventanas en las áreas 2, 3, 6, 8, 19, 23, 24, 27 y 30 (todos los grupos 0x8000 quedan cubiertos).
+
+**Páginas animadas por overlays.** Todas son desplazamientos verticales (agua y cascadas) hechos con `func_8002FDF4`, un "MoveImage" que copia un rectángulo de VRAM sobre los datos de la página (si el destino es una página de 0x20×0x80, todas las coordenadas se dividen por 2). Hay un objeto "cascada" compartido por ovl4/16/19/22 (áreas 9, 14, 17, 20: tabla de 5 entradas `{x0, y0, x1, y1, paso, bandera}`, bloque A de 0x10×0x40 desplazado `s` filas, bloque B de 8×0x20 desplazado `s/2`, `s` avanza de a 2) y cuatro bloques fijos en ovl3 (área 11). Se generan los 32 cuadros (aplicando primero el cuadro anterior, porque en páginas de media resolución un desplazamiento impar deja una fila del cuadro previo) solo para los bloques cuyo destino ya contiene en la ROM un cuadro de la tira en al menos la mitad de las filas: área 9 (4A, 4B), 11 (los cuatro), 14 (0A, 0B), 17 (3A, 3B) y 20 (1A, 2A). Son 1179 ventanas. En ovl3 se supone que los contadores arrancan en 0 (fase par entre los bloques grandes y chicos).
+
+**CLUT animadas (no hechas).** Los overlays de 16 áreas tienen un objeto que mezcla dos CLUT en una tercera (por ejemplo `func_8024D31C_ovl10` en el área 5): interpola cada canal de 5 bits con `paso/pasos`. Las CLUT de origen y destino y los pasos vienen de los datos de cada objeto colocado, que no se interpretaron; las ventanas que usan una CLUT destino muestran la textura original durante y después de la mezcla.
+
+**Inestables.** Las ventanas que leen la fila 128 de páginas de 128 filas (bytes que siguen al archivo TIM en el heap) no se pueden predecir y quedan fuera; la mayor parte está en el área 26 (812 dibujos en sus 8 terrenos).
+
+**Escalado.** Con la GPU compartida con el juego en prueba, waifu2x devolvió en silencio imágenes negras en dos lotes (246 páginas) y otras 5 páginas oscuras pasaban un control ingenuo. Ahora cada página escalada se compara con su original (reducción por caja, con tolerancia relativa para páginas oscuras), se rehace con lotes y tiles más chicos si falla (xBRZ por CPU solo como último recurso, informado en `summary.json`), y un manifiesto en el directorio de DDS rehace las ventanas de toda página regenerada.
+
+**Resultado (2026-10-02):** 19 811 ventanas únicas, 19 811/19 811 hashes idénticos con el hasher C++ de RT64 y 19 811/19 811 TMEM reconstruidas por su cargador C++; 18 341 exactas contra el recorte de la página, 1415 con el defecto de un texel de la DL original (el recorte lo corrige) y 55 que leen pasado el borde.
+
+| área | ventanas | grupos sin resolver / motivo |
+|---:|---:|---|
+| 0 | 930 | 24 dibujos inestables |
+| 1 | 0 | 9 de 9: página y CLUT solo de otras áreas |
+| 2 | 354 | — |
+| 3 | 1391 | 24 dibujos inestables |
+| 4 | 1774 | 16 dibujos inestables |
+| 5 | 901 | 98 dibujos inestables |
+| 6 | 1301 | 147 grupos (página/CLUT de otras áreas), 58 dibujos inestables |
+| 7 | 1352 | 72 grupos del terreno del banco 6 (E5): páginas `(0x280/0x240,0x100)` de otras áreas |
+| 8 | 256 | — |
+| 9 | 1003 | 8 dibujos inestables (incluye 274 cuadros de cascada) |
+| 10 | 1037 | — |
+| 11 | 1194 | — (529 cuadros de ovl3) |
+| 12 | 277 | — |
+| 13 | 960 | 6 dibujos inestables |
+| 14 | 504 | — (62 cuadros) |
+| 15 | 649 | — |
+| 16 | 545 | 6 dibujos inestables |
+| 17 | 405 | — (188 cuadros) |
+| 18 | 316 | 6 dibujos inestables |
+| 19 | 1201 | 14 dibujos inestables |
+| 20 | 496 | — (126 cuadros) |
+| 21 | 147 | — |
+| 22 | 509 | — |
+| 23 | 154 | — |
+| 24 | 260 | — |
+| 25 | 494 | 41 dibujos inestables |
+| 26 | 903 | 812 dibujos inestables (8 terrenos) |
+| 27 | 1033 | 12 dibujos inestables |
+| 28 | 212 | — |
+| 29 | 1982 | — |
+| 30 | 216 | — |
+
+Las sumas superan el total porque 1542 ventanas aparecen en más de un área. Los detalles quedan en `out\all\coverage.csv`, `sequences.csv`, `windows.csv`, `problems.csv` y `summary.json`, y las comparaciones original/HD de cada área en `out\all\previews\areaNN.png`.
+
+**Packs:** `out\all\packs\mm64_hd_terrain_all_w2x\mm64_hd_terrain_all_w2x.rtz` (176 MB, 19 811 DDS BC7 con mips, mod id `mm64_hd_terrain_all_w2x`) y un pack por área en `out\all\packs\mm64_hd_terrain_areaNN_w2x\` (el del área 4 reemplaza al de la sección 9 con el mismo id y pasa de 946 a 1774 ventanas). La caché de mips bajos del pack combinado ocupa 202 MB sin comprimir y RT64 la sube entera a la GPU al cargar el pack (unos 100 MB de texturas más el búfer de subida de 202 MB): sin problema en la PC, pero a tener en cuenta para el port de Quest.
+
+**Uso:**
+
+```
+cd C:\Users\Usuario\Devel\tools\upscale\terrain
+python build_all_terrain.py                     # todo (unos 10 min la primera vez; incremental después)
+python build_all_terrain.py --skip-upscale      # replay, verificaciones C++ e informes (unos 2 min)
+python build_all_terrain.py --areas 4,5,12      # subconjunto
+powershell -ExecutionPolicy Bypass -File install_all.ps1 [-Uninstall] [-RemoveAreaPacks] [-DryRun]
+```
+
+`install_all.ps1` no hace nada si el juego está abierto, avisa si hay packs por área instalados (duplican texturas del combinado) y no toca `mods.json`: un mod nuevo se activa solo al siguiente arranque.
+
+**Riesgos:** (1) las mezclas de CLUT de los overlays; (2) las secuencias dependientes de la historia generan ventanas que una partida concreta nunca ve (más tamaño, no errores); (3) la regla de las secuencias derivadas descarta variantes de grupos que ya resuelve una carga fresca: si el juego mostrara justo esa variante, se vería la textura original; (4) la fase supuesta de ovl3 y el criterio de "bloque verificado" de las cascadas; (5) los nombres de casi todas las áreas siguen sin confirmar en el juego; (6) falta la prueba en el juego del pack combinado (el proceso de pruebas lo instala y lo valida con `validate_terrain_dump.py`).

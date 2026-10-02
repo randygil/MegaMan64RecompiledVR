@@ -141,7 +141,8 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
                 zelda64::set_enhanced_lighting_enabled(!zelda64::get_enhanced_lighting_enabled());
                 zelda64::save_config();
             }
-            if (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F4) {
+            // F4 toggles the texture packs in RT64's developer mode.
+            if (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F6) {
                 zelda64::set_3d_trees_enabled(!zelda64::get_3d_trees_enabled());
                 zelda64::save_config();
             }

@@ -79,8 +79,8 @@ Scripts en `C:\Users\Usuario\Devel\tools` (PowerShell; llamarlos con `powershell
 | `rt_tune.ps1 -Sets "label|NOMBRE valor;NOMBRE valor"` | Una sola ejecución, cambia el archivo de tuning en vivo (`RT64_RT_TUNING_FILE`) y captura cada set. |
 | `rt_perf.ps1 -Sets ...` | Igual pero reporta el tiempo de frame (`RT64_PRINT_FRAME_TIME`) de cada set. |
 | `rt_rotate.ps1 -Dx 400`, `rt_pitch.ps1 -Dy 400`, `rt_sweep.ps1` | Giran la cámara moviendo el ratón y capturan (necesitan foco; tocan Alt para tomarlo). |
-| `keys.ps1 -Keys "0D,wait:1500,20:500,click:0.5,0.6"` | Envía teclas/clics a la ventana del juego (solo si es la ventana activa). |
-| `rt_menu.ps1` | Abre el menú de configuración (Esc) y lo captura. Con `keys.ps1 -Keys "click:0.31,0.09"` se pasa a la pestaña Graphics. |
+| `keys.ps1 -Keys "0D,wait:1500,20:500,click:0.5,0.6"` | Envía teclas/clics a la ventana del juego (solo si es la ventana activa). `move:x,y` solo mueve el cursor y `wheel:-3` gira la rueda (negativo = hacia abajo): sirve para desplazar la lista de opciones del menú. |
+| `rt_menu.ps1` | Abre el menú de configuración (Esc) y lo captura. Con `keys.ps1 -Keys "click:0.31,0.09"` se pasa a la pestaña Graphics (el clic falla si llega mientras el menú se abre: mandarlo en otra llamada); la lista de opciones se desplaza con `move:0.3,0.5,wheel:-3`. |
 | `light_run.ps1 [-Tuning "N v;N v"] [-Warp a,e]` | Arranca con la iluminación raster (`RT64_LIGHTING=1`, PT apagado) y captura. |
 | `light_tune.ps1 -Sets @("label|N v;N v",...) [-Warp a,e] [-Full] [-SettleMs 1500]` | Una ejecución, varios sets de tuning en vivo; captura y tiempo de frame (CPU y GPU) por set. Con `RT64_LIGHT_PRINT=1` deja en `game_err.txt` las escenas de iluminación. |
 | `light_tune_api.ps1 -Api D3D12 -Sets @(...)` | Igual que `light_tune.ps1` con otra API gráfica; restaura `graphics.json` al terminar. |
@@ -90,7 +90,14 @@ Scripts en `C:\Users\Usuario\Devel\tools` (PowerShell; llamarlos con `powershell
 | `desktop_vr_build.sh` | Compila los parches (zig como compilador MIPS), corre N64Recomp y el build VR de escritorio. Si solo cambia C++, basta `cfg_vr.bat` (ver el script). |
 | `city_test.ps1`, `vr_run.ps1` | Pruebas del build VR de escritorio (simulador o modo debug). |
 
-Atajos dentro del juego: **F2** alterna path tracing, **F3** la iluminación raster mejorada; Esc abre el menú.
+Atajos dentro del juego: **F2** alterna path tracing, **F3** la iluminación raster mejorada, **F6** los árboles 3D
+(opción "Trees"); Esc abre el menú. Con `developer_mode` RT64 usa además F1 (inspector), F2, F3 (RDRAM) y **F4 (packs
+de texturas)**: por eso los árboles no usan F4.
+
+Árboles 3D (`patches/tree3d.c`, experimento E3 de `remake-research.md`): los datos salen de
+`C:\Users\Usuario\Devel\tools\upscale\proto\tree3d_gen.py --area 3 [--records 39,41] [--set CORE_SCALE=0.8]`, que
+escribe `patches/tree3d_area3.c` y vistas previas en `tree3d_out\`. Después: `make` en `patches` (con `mips-cc.sh`),
+`N64Recomp.exe patches.toml` y el build. Comparar en el juego con F6 entre dos capturas.
 
 Los scripts que reciben arreglos (`-Sets @(...)`) se llaman con `& script.ps1 ...` desde la herramienta PowerShell;
 `powershell -File` no pasa arreglos. Cada llamada de la herramienta es un proceso nuevo: las variables `$env:` no
