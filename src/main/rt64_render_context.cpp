@@ -374,8 +374,9 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
 
 zelda64::renderer::RT64Context::~RT64Context() = default;
 
-// Set by report_sky_background, taken by the next display list.
-static std::atomic<bool> sky_background_reported = false;
+// Set by report_sky_background and counted down by every display list, so the lists built before the renderer gets them
+// (the game can build the next one first) still see the report, and it fades out a few lists after the sky is gone.
+static std::atomic<int> sky_background_lists = 0;
 
 // The game transforms its geometry with the camera already applied, so RT64 has no world space to place the sun in.
 // The camera rotation is read from the game's current view matrix (PSX style, 4.12 fixed point and -Y up in the world)
@@ -464,7 +465,11 @@ static void update_world_view_rotation(RT64::Application* app, const uint8_t* rd
     last_area = area;
     app->setSunRequiresSkyBackground(true);
     app->setSceneKey(uint16_t(area));
-    app->setSkyBackgroundHint(sky_background_reported.exchange(false));
+    int sky_lists = sky_background_lists.load();
+    while ((sky_lists > 0) && !sky_background_lists.compare_exchange_weak(sky_lists, sky_lists - 1)) {
+    }
+
+    app->setSkyBackgroundHint(sky_lists > 0);
 }
 
 void zelda64::renderer::RT64Context::send_dl(const OSTask* task) {
@@ -512,7 +517,7 @@ void zelda64::renderer::set_lighting_quality(int quality) {
 }
 
 void zelda64::renderer::report_sky_background() {
-    sky_background_reported = true;
+    sky_background_lists = 3;
 }
 
 void zelda64::renderer::set_path_tracing_sky(bool enhanced) {
