@@ -288,7 +288,13 @@ Regla: **todo lo nuevo debe ser agnóstico al juego**.
   errores `commandBuffer-recording`): ahora cada copia del frame usa su propio set. Regla: **un descriptor set no se
   actualiza después de enlazarlo en el mismo frame**; usar sets por llamada o actualizarlos en `updateDescriptorSets`
   antes de grabar. Y plume pasaba scissors con origen negativo (-1) a Vulkan, que exige ≥ 0: se recortan en
-  `VulkanCommandList::setScissors`.
+  `VulkanCommandList::setScissors`. Con eso el escritorio queda sin errores (bosque y dungeon 20,0, con y sin el
+  emisivo experimental). **Pendiente para Android/Quest:** el build VR de escritorio en Vulkan (`vr_tune.ps1` con
+  `$env:VK_INSTANCE_LAYERS = "VK_LAYER_KHRONOS_validation"` y `api_option` en Vulkan; la salida queda en
+  `.claude\jobs\c7c254a1\tmp\game_out.txt`) todavía da `VUID-vkCmdDispatch-None-08114` (descriptores nunca escritos)
+  en pases del núcleo de RT64, no de la iluminación: `invTWorldMats`/`prevWorldMats` del `VertexProcessor` y
+  `gNewInput`/`gOutput`/`gOutputChange*` de la detección de cambios del framebuffer (`FbReadAnyChangesCS`). En un
+  driver móvil un descriptor sin escribir puede leer basura o colgar: revisarlo antes de probar en el visor.
 - No crear texturas ni framebuffers en mitad de la grabación de un command list que todavía los usa en el frame
   (el `copyColor` de la iluminación los recreaba al cambiar de formato): crearlos en `finish()`, antes de grabar.
 - **"Una superficie sale oscura"**: antes de buscar un bug, mirar `RT64_LIGHT_DEBUG 3` (sombra) y `7` (distancia al
