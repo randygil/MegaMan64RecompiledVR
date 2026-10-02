@@ -293,7 +293,7 @@ Regla: **todo lo nuevo debe ser agnóstico al juego**.
     (VR, interiores, primer frame): marcar qué entradas son válidas y no leer las demás.
   - `State` tiene su propio `FramebufferRenderer` que graba en el hilo del juego: el estado global de herramientas como
     `gpuMarker` debe ser `thread_local`.
-- `mm64_build.bat` usa 12 procesos (`MM64_BUILD_JOBS`); con 24 y WSL abierto (9 GB) clang-cl se quedó sin memoria.
+- `mm64_build.bat` usa 6 procesos (`MM64_BUILD_JOBS`); con 24, y luego con 12, clang-cl se quedó sin memoria (WSL ocupa 9 GB y los agentes corren waifu2x). Si aparece `LLVM ERROR: out of memory`, el exe NO se actualizó: revisar la salida antes de probar.
 - Probado y descartado: un pre-pase que copiaba la profundidad (la muestra más lejana) a un depth buffer de una
   muestra para que el *replay* del G-buffer tuviera early-Z. En escritorio no ganó nada (el G-buffer no está limitado
   por overdraw) y en VR con MSAA 4x salió más caro: leer un depth buffer MSAA en un shader es caro.
