@@ -222,7 +222,8 @@ distinguen; haría falta marcar las texturas emisivas por hash (E5 de `remake-re
 ## Portabilidad
 
 - Genérico: shaders `Lighting*.hlsl/.hlsli`, `rt64_lighting_params.h`, `computeStableShadowMatrix`, la composición,
-  el AO y el *sphere impostor*. Entradas: depth buffer, matrices (`viewProj`, `invViewProj`, mapeo píxel→clip),
+  el AO, el *sphere impostor*, las sombras de las nubes (necesitan la base del mundo y el cielo procedural) y el
+  emisivo experimental. Entradas: depth buffer, matrices (`viewProj`, `invViewProj`, mapeo píxel→clip),
   buffers de posición/normal/índices por vértice y la base del mundo.
 - Específico de RT64: los *replays* usan los descriptor sets y el alpha test del RDP (`LightingAlpha.hlsli`).
   En otro renderer (p. ej. un port de PS1) basta con dibujar los opacos con su propio shader de alpha test.
