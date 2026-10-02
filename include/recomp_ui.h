@@ -24,6 +24,9 @@ namespace Rml {
 }
 
 namespace recompui {
+    // Updates the graphics menu if the path tracing option was changed outside of it (e.g. with F2).
+    void refresh_path_tracing_option();
+
     class UiEventListenerInstancer;
 
     // TODO remove this once the UI has been ported over to the new system.

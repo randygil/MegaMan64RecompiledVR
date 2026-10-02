@@ -1,3 +1,5 @@
+#include <atomic>
+#include <filesystem>
 #include <memory>
 #include <cstring>
 #include <variant>
@@ -12,6 +14,7 @@
 #include "ultramodern/config.hpp"
 
 #include "zelda_render.h"
+#include "zelda_config.h"
 #include "recomp_ui.h"
 #include "concurrentqueue.h"
 
@@ -206,6 +209,10 @@ ultramodern::renderer::SetupResult map_setup_result(RT64::Application::SetupResu
     std::exit(EXIT_FAILURE);
 }
 
+// Requested state of the path tracer: -1 means no change was requested.
+static std::atomic<int> path_tracing_requested_state = -1;
+static std::atomic<bool> path_tracing_supported = false;
+
 ultramodern::renderer::GraphicsApi map_graphics_api(RT64::UserConfiguration::GraphicsAPI api) {
     switch (api) {
         case RT64::UserConfiguration::GraphicsAPI::D3D12:
@@ -324,6 +331,9 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
     }
 #endif
 
+    // Prefer an API that supports the path tracer so it can be toggled at any time.
+    app->raytracingPreferred = true;
+
     // Set up the RT64 application.
     uint32_t thread_id = 0;
 #ifdef _WIN32
@@ -336,6 +346,10 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
         app = nullptr;
         return;
     }
+
+    // Start the path tracer if it was enabled.
+    path_tracing_supported = app->isRaytracingSupported();
+    app->setRaytracingEnabled(zelda64::get_path_tracing_enabled());
 
     // Set the application's fullscreen state.
     app->setFullScreen(cur_config.wm_option == ultramodern::renderer::WindowMode::Fullscreen);
@@ -359,15 +373,113 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
 
 zelda64::renderer::RT64Context::~RT64Context() = default;
 
+// The game transforms its geometry with the camera already applied, so RT64 has no world space to place the sun in.
+// The camera rotation is read from the game's current view matrix (PSX style, 4.12 fixed point and -Y up in the world)
+// and converted into a rotation from a world with +Y up into the space of the geometry.
+static void update_world_view_rotation(RT64::Application* app, const uint8_t* rdram) {
+    constexpr uint32_t ViewMatrixAddress = 0x801D4760;
+    auto read_s16 = [rdram](uint32_t address) {
+        return *reinterpret_cast<const int16_t*>(rdram + (((address & 0x3FFFFFF) ^ 2)));
+    };
+
+    static float axis_signs[3] = { 1.0f, 1.0f, 1.0f };
+    static bool axis_signs_read = false;
+    if (!axis_signs_read) {
+        const char* signs = getenv("MM64_RT_VIEW_AXIS_SIGNS");
+        if (signs != nullptr) {
+            sscanf(signs, "%f,%f,%f", &axis_signs[0], &axis_signs[1], &axis_signs[2]);
+        }
+
+        axis_signs_read = true;
+    }
+
+    float rotation[9];
+    bool valid = false;
+    for (uint32_t i = 0; i < 3; i++) {
+        for (uint32_t j = 0; j < 3; j++) {
+            // The world of the game has -Y up, so the Y column is negated to take directions from a +Y up world.
+            const float value = read_s16(ViewMatrixAddress + (i * 3 + j) * 2) / 4096.0f;
+            rotation[i * 3 + j] = value * axis_signs[i] * ((j == 1) ? -1.0f : 1.0f);
+            valid = valid || (value != 0.0f);
+        }
+    }
+
+    app->setWorldViewRotation(valid ? rotation : nullptr);
+
+    // The translation of the matrix follows the rotation (PSX MATRIX layout), in the same units as the geometry.
+    auto read_s32 = [rdram](uint32_t address) {
+        return *reinterpret_cast<const int32_t*>(rdram + (address & 0x3FFFFFF));
+    };
+
+    float translation[3];
+    for (uint32_t i = 0; i < 3; i++) {
+        translation[i] = float(read_s32(ViewMatrixAddress + 0x14 + i * 4)) * axis_signs[i];
+    }
+
+    app->setWorldViewTranslation(valid ? translation : nullptr);
+    if (getenv("RT64_RT_PRINT_VIEW") != nullptr) {
+        static uint32_t print_counter = 0;
+        if ((print_counter++ % 60) == 0) {
+            fprintf(stderr, "View translation %.1f %.1f %.1f\n", translation[0], translation[1], translation[2]);
+        }
+    }
+
+    // Outdoor areas draw a 2D sky behind the scene. The dungeons don't and many have no ceiling, so the sun would
+    // light them from above. The area is the scene key, so an area keeps its sun while the camera looks down.
+    constexpr uint32_t LoadedAreaAddress = 0x801BC450;
+    const int16_t area = read_s16(LoadedAreaAddress);
+    static int last_area = -1;
+    if ((area != last_area) && (getenv("RT64_RT_PRINT_VIEW") != nullptr)) {
+        fprintf(stderr, "Area %d\n", area);
+    }
+
+    last_area = area;
+    app->setSunRequiresSkyBackground(true);
+    app->setSceneKey(uint16_t(area));
+}
+
 void zelda64::renderer::RT64Context::send_dl(const OSTask* task) {
     check_texture_pack_actions();
+    update_world_view_rotation(app.get(), app->core.RDRAM);
     app->state->rsp->reset();
     app->interpreter->loadUCodeGBI(task->t.ucode & 0x3FFFFFF, task->t.ucode_data & 0x3FFFFFF, true);
     app->processDisplayLists(app->core.RDRAM, task->t.data_ptr & 0x3FFFFFF, 0, true);
 }
 
 void zelda64::renderer::RT64Context::update_screen() {
+    // Development aid: MM64_RT_TOGGLE_FILE names a file that toggles the path tracer when it's created, so scripts can
+    // compare both renderers in the same scene.
+    static const char* toggle_file = getenv("MM64_RT_TOGGLE_FILE");
+    static uint32_t toggle_check_counter = 0;
+    if ((toggle_file != nullptr) && ((++toggle_check_counter % 15) == 0) && std::filesystem::exists(toggle_file)) {
+        std::error_code ec;
+        std::filesystem::remove(toggle_file, ec);
+        path_tracing_requested_state = app->isRaytracingEnabled() ? 0 : 1;
+    }
+
+    const int requested_state = path_tracing_requested_state.exchange(-1);
+    if (requested_state >= 0) {
+        app->setRaytracingEnabled(requested_state != 0);
+    }
+
     app->updateScreen();
+}
+
+void zelda64::renderer::set_path_tracing_enabled(bool enabled) {
+    path_tracing_requested_state = enabled ? 1 : 0;
+}
+
+void zelda64::renderer::set_path_tracing_effects(int level) {
+    static const float intensities[] = { 0.0f, 0.5f, 1.0f };
+    RT64::setEnhancementIntensity(intensities[std::clamp(level, 0, 2)]);
+}
+
+void zelda64::renderer::set_path_tracing_sky(bool enhanced) {
+    RT64::setProceduralSkyEnabled(enhanced);
+}
+
+bool zelda64::renderer::is_path_tracing_supported() {
+    return path_tracing_supported;
 }
 
 void zelda64::renderer::RT64Context::shutdown() {

@@ -1,6 +1,8 @@
 #include "zelda_config.h"
 #include "recomp_input.h"
 #include "zelda_sound.h"
+#include <algorithm>
+#include <atomic>
 #include "zelda_render.h"
 #include "zelda_support.h"
 #include "ultramodern/config.hpp"
@@ -365,9 +367,45 @@ void reset_graphics_options() {
     ultramodern::renderer::set_graphics_config(new_config);
 }
 
+static std::atomic<bool> path_tracing_enabled = false;
+static std::atomic<int> path_tracing_effects = 2;
+static const char* path_tracing_effects_names[] = { "Off", "Subtle", "Full" };
+
+int zelda64::get_path_tracing_effects() {
+    return path_tracing_effects;
+}
+
+void zelda64::set_path_tracing_effects(int level) {
+    path_tracing_effects = std::clamp(level, 0, 2);
+    zelda64::renderer::set_path_tracing_effects(path_tracing_effects);
+}
+
+static std::atomic<bool> path_tracing_sky = true;
+
+bool zelda64::get_path_tracing_sky() {
+    return path_tracing_sky;
+}
+
+void zelda64::set_path_tracing_sky(bool enhanced) {
+    path_tracing_sky = enhanced;
+    zelda64::renderer::set_path_tracing_sky(enhanced);
+}
+
+bool zelda64::get_path_tracing_enabled() {
+    return path_tracing_enabled;
+}
+
+void zelda64::set_path_tracing_enabled(bool enabled) {
+    path_tracing_enabled = enabled;
+    zelda64::renderer::set_path_tracing_enabled(enabled);
+}
+
 bool save_graphics_config(const std::filesystem::path& path) {
     nlohmann::json config_json{};
     ultramodern::to_json(config_json, ultramodern::renderer::get_graphics_config());
+    config_json["pt_option"] = path_tracing_enabled ? "On" : "Off";
+    config_json["pt_effects_option"] = path_tracing_effects_names[path_tracing_effects];
+    config_json["pt_sky_option"] = path_tracing_sky ? "Enhanced" : "Original";
     return save_json_with_backups(path, config_json);
 }
 
@@ -380,6 +418,15 @@ bool load_graphics_config(const std::filesystem::path& path) {
     ultramodern::renderer::GraphicsConfig new_config{};
     ultramodern::from_json(config_json, new_config);
     ultramodern::renderer::set_graphics_config(new_config);
+    path_tracing_enabled = (config_json.value("pt_option", std::string("Off")) == "On");
+    const std::string effects = config_json.value("pt_effects_option", std::string("Full"));
+    for (int i = 0; i < 3; i++) {
+        if (effects == path_tracing_effects_names[i]) {
+            zelda64::set_path_tracing_effects(i);
+        }
+    }
+
+    zelda64::set_path_tracing_sky(config_json.value("pt_sky_option", std::string("Enhanced")) != "Original");
     return true;
 }
 

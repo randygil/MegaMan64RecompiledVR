@@ -7,6 +7,7 @@
 #include <chrono>
 
 #include "rt64_render_hooks.h"
+#include "zelda_render.h"
 
 #include "concurrentqueue.h"
 
@@ -563,6 +564,8 @@ void draw_hook(plume::RenderCommandList* command_list, plume::RenderFramebuffer*
     }
 
     std::lock_guard lock{ ui_state_mutex };
+
+    recompui::refresh_path_tracing_option();
 
     SDL_Event cur_event{};
 

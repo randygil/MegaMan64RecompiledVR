@@ -47,6 +47,13 @@ namespace zelda64 {
         bool RT64HighPrecisionFBEnabled();
 
         void trigger_texture_pack_update();
+
+        // Switches between the path traced renderer and the regular one when the GPU supports it.
+        void set_path_tracing_enabled(bool enabled);
+        bool is_path_tracing_supported();
+        // 0 none, 1 subtle, 2 full.
+        void set_path_tracing_effects(int level);
+        void set_path_tracing_sky(bool enhanced);
         void enable_texture_pack(const recomp::mods::ModContext& context, const recomp::mods::ModHandle& mod);
         void disable_texture_pack(const recomp::mods::ModHandle& mod);
         void secondary_enable_texture_pack(const std::string& mod_id);

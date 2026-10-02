@@ -267,6 +267,95 @@
                         </div>
                     </div>
 
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(7)">
+                        <label class="config-option__title">Path Tracing</label>
+                        <div class="config-option__list">
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(7)"
+                                name="pt-option"
+                                data-checked="pt_option"
+                                value="Off"
+                                id="pt_off"
+                                style="nav-up: #hr_original; nav-down: #pte_off"
+                            />
+                            <label class="config-option__tab-label" for="pt_off">Off</label>
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(7)"
+                                name="pt-option"
+                                data-checked="pt_option"
+                                value="On"
+                                id="pt_on"
+                                style="nav-up: #hr_16_9; nav-down: #pte_subtle"
+                            />
+                            <label class="config-option__tab-label" for="pt_on">On</label>
+                            <div class="config-option__details" data-if="!pt_supported">Requires a GPU with ray tracing and the Vulkan API (restart after enabling)</div>
+                        </div>
+                    </div>
+
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(8)">
+                        <label class="config-option__title">Path Tracing Effects</label>
+                        <div class="config-option__list">
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(8)"
+                                name="pte-option"
+                                data-checked="pt_effects_option"
+                                value="Off"
+                                id="pte_off"
+                                style="nav-up: #pt_off; nav-down: #pts_enhanced"
+                            />
+                            <label class="config-option__tab-label" for="pte_off">Off</label>
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(8)"
+                                name="pte-option"
+                                data-checked="pt_effects_option"
+                                value="Subtle"
+                                id="pte_subtle"
+                                style="nav-up: #pt_on; nav-down: #pts_original"
+                            />
+                            <label class="config-option__tab-label" for="pte_subtle">Subtle</label>
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(8)"
+                                name="pte-option"
+                                data-checked="pt_effects_option"
+                                value="Full"
+                                id="pte_full"
+                                style="nav-up: #pt_on; nav-down: #pts_original"
+                            />
+                            <label class="config-option__tab-label" for="pte_full">Full</label>
+                        </div>
+                    </div>
+
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(9)">
+                        <label class="config-option__title">Path Tracing Sky</label>
+                        <div class="config-option__list">
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(9)"
+                                name="pts-option"
+                                data-checked="pt_sky_option"
+                                value="Enhanced"
+                                id="pts_enhanced"
+                                style="nav-up: #pte_off; nav-down: #apply_button"
+                            />
+                            <label class="config-option__tab-label" for="pts_enhanced">Enhanced</label>
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(9)"
+                                name="pts-option"
+                                data-checked="pt_sky_option"
+                                value="Original"
+                                id="pts_original"
+                                style="nav-up: #pte_subtle; nav-down: #apply_button"
+                            />
+                            <label class="config-option__tab-label" for="pts_original">Original</label>
+                        </div>
+                    </div>
+
                 </div>
                 <div class="config__wrapper">
                     <p data-if="cur_config_index == 0">
@@ -302,6 +391,18 @@
                     <p data-if="cur_config_index == 6">
                         Adjusts the placement of HUD elements to fit the selected aspect ratio. <b>Expand</b> will use the aspect ratio of the game's output window.
                     </p>
+                    <p data-if="cur_config_index == 7">
+                        Replaces the game's lighting with real time path tracing: sun shadows, global illumination and reflections computed with ray tracing. You can also use <b>F2</b> to toggle it.
+                        <br />
+                        <br />
+                        Note: Requires a GPU with hardware ray tracing support. The <b>Vulkan</b> graphics API is used automatically when this option is enabled; restart the game after enabling it for the first time.
+                    </p>
+                    <p data-if="cur_config_index == 9">
+                        <b>Enhanced</b> replaces the sky of outdoor scenes with a physically based sky: an atmosphere lit by the sun and volumetric clouds that move with the wind. The parts of the game's background that aren't sky, like mountains or buildings, are kept. <b>Original</b> uses the game's sky.
+                    </p>
+                    <p data-if="cur_config_index == 8">
+                        Strength of the extra effects added on top of path tracing: ambient occlusion, light scattering in the air, the sun in the sky, bloom, sharpening, color grading, vignette and texture relief. <b>Off</b> keeps only the path traced lighting and shadows.
+                    </p>
                 </div>
             </div>
             <div class="config__footer">
@@ -314,7 +415,7 @@
                         data-attrif-disabled="!options_changed"
                         onclick="apply_options"
                         id="apply_button"
-                        style="nav-up:#hr_original"
+                        style="nav-up:#pts_original"
                     >
                         <div class="button__label">Apply<span class="prompt-font-sm">{{gfx_help__apply}}</span></div>
                     </button>

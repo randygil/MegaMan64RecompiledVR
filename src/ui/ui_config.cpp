@@ -800,6 +800,31 @@ public:
         constructor.Bind("msaa8x_supported", &msaa8x_supported);
         constructor.Bind("sample_positions_supported", &sample_positions_supported);
 
+        // Path tracing applies immediately instead of waiting for the apply button.
+        constructor.BindFunc("pt_option",
+            [](Rml::Variant& out) { out = zelda64::get_path_tracing_enabled() ? "On" : "Off"; },
+            [](const Rml::Variant& in) {
+                zelda64::set_path_tracing_enabled(in.Get<std::string>() == "On");
+                zelda64::save_config();
+            });
+        constructor.BindFunc("pt_supported", [](Rml::Variant& out) { out = zelda64::renderer::is_path_tracing_supported(); });
+        constructor.BindFunc("pt_sky_option",
+            [](Rml::Variant& out) { out = zelda64::get_path_tracing_sky() ? "Enhanced" : "Original"; },
+            [](const Rml::Variant& in) {
+                zelda64::set_path_tracing_sky(in.Get<std::string>() != "Original");
+                zelda64::save_config();
+            });
+        constructor.BindFunc("pt_effects_option",
+            [](Rml::Variant& out) {
+                static const char* names[] = { "Off", "Subtle", "Full" };
+                out = names[zelda64::get_path_tracing_effects()];
+            },
+            [](const Rml::Variant& in) {
+                const std::string value = in.Get<std::string>();
+                zelda64::set_path_tracing_effects((value == "Off") ? 0 : ((value == "Subtle") ? 1 : 2));
+                zelda64::save_config();
+            });
+
         graphics_model_handle = constructor.GetModelHandle();
     }
 
@@ -1134,6 +1159,16 @@ void recompui::update_supported_options() {
     new_options = ultramodern::renderer::get_graphics_config();
 
     graphics_model_handle.DirtyAllVariables();
+}
+
+void recompui::refresh_path_tracing_option() {
+    static bool last_value = false;
+    const bool value = zelda64::get_path_tracing_enabled();
+    if ((value != last_value) && graphics_model_handle) {
+        graphics_model_handle.DirtyVariable("pt_option");
+        graphics_model_handle.DirtyVariable("pt_supported");
+        last_value = value;
+    }
 }
 
 void recompui::toggle_fullscreen() {

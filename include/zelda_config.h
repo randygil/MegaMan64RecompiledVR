@@ -22,6 +22,14 @@ namespace zelda64 {
     std::filesystem::path get_app_folder_path();
     
     bool get_debug_mode_enabled();
+    bool get_path_tracing_enabled();
+    void set_path_tracing_enabled(bool enabled);
+    // Strength of the path tracer's visual effects: 0 off, 1 subtle, 2 full.
+    int get_path_tracing_effects();
+    void set_path_tracing_effects(int level);
+    // Whether outdoor scenes use the path tracer's procedural sky instead of the game's.
+    bool get_path_tracing_sky();
+    void set_path_tracing_sky(bool enhanced);
     void set_debug_mode_enabled(bool enabled);
     
     enum class FilmGrainMode {
