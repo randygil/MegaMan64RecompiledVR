@@ -154,7 +154,7 @@ bool recomp::get_n64_input(int controller_num, uint16_t* buttons_out, float* x_o
         static const auto start = std::chrono::steady_clock::now();
         const float t = std::chrono::duration<float>(std::chrono::steady_clock::now() - start).count();
         const float start_presses[] = { 9.0f, 12.0f, 14.5f, 17.0f };
-        const float a_presses[] = { 19.5f, 21.0f };
+        const float a_presses[] = { 19.5f, 21.0f, 22.5f, 24.5f, 27.0f };
         for (float p : start_presses) {
             if (t >= p && t < p + 0.15f) {
                 cur_buttons |= n64_button_values[(size_t)GameInput::START - (size_t)GameInput::N64_BUTTON_START];

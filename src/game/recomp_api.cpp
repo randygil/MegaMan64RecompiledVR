@@ -93,6 +93,27 @@ extern "C" void recomp_vr_set_stereo(uint8_t* rdram, recomp_context* ctx) {
 
 extern "C" void recomp_vr_haptic(uint8_t* rdram, recomp_context* ctx) {
 }
+
+// Debugging: MM64_VR_WARP=<area>[,<entrance>[,<load>]] replaces the area of the game's <load>th area load (1 by
+// default, the save's) with that one (4 is Apple Market), so any area can be tested quickly.
+extern "C" void recomp_vr_debug_warp(uint8_t* rdram, recomp_context* ctx) {
+    static int loads = 0;
+    const char* warp = getenv("MM64_VR_WARP");
+    if (warp == nullptr) {
+        return;
+    }
+    int area = atoi(warp);
+    const char* comma = strchr(warp, ',');
+    int entrance = comma != nullptr ? atoi(comma + 1) : 0;
+    const char* comma2 = comma != nullptr ? strchr(comma + 1, ',') : nullptr;
+    int load = comma2 != nullptr ? atoi(comma2 + 1) : 1;
+    if (++loads != load) {
+        return;
+    }
+    printf("Debug warp to area %d, entrance %d\n", area, entrance);
+    MEM_B(0, (gpr)(int32_t)0x801BC438) = (int8_t)area;
+    MEM_B(0, (gpr)(int32_t)0x801BC439) = (int8_t)entrance;
+}
 #endif
 
 extern "C" void recomp_powf(uint8_t* rdram, recomp_context* ctx) {
