@@ -52,7 +52,7 @@
 | MSAA | hecho | composición por superficie (`SV_Coverage`), alpha to coverage en recortes |
 | D3D12 | hecho | bug de samplers inmutables de plume corregido; iluminación igual que en Vulkan (PT en D3D12 sin probar) |
 | Árboles | en curso | volumen + sombras de hojas + translucidez + bordes con AA hechos; PT sin vaivén/ruido; árboles 3D: núcleos sólidos dentro de las tarjetas del bosque (área 3) como opción "Trees" (experimental, Original por omisión: desde la cámara a ras del suelo las tarjetas se ven más naturales); ver `remake-research.md` E3 |
-| Texture pack HD | prototipo probado | pack de modelos (waifu2x) y pack de terreno de **todas las áreas** (19 811 texturas, 176 MB) probados en el juego: más nítidos en dungeons y ciudad; waifu2x emborrona las texturas con ruido (elegir modelo por página) |
+| Texture pack HD | prototipo probado | pack de modelos (waifu2x) y pack de terreno de **todas las áreas** (19 811 texturas, 176 MB) probados en el juego: más nítidos en dungeons y ciudad; las páginas con ruido o tramado conservan su grano (waifu2x + hqx según una medida por página, 163 MB) |
 | Reemplazo de modelos (experimento) | investigado | hook en `func_800805F8`; árbol procedural de 618 triángulos |
 | Rendimiento | en curso | *replays* fusionados, normales suaves en bloques de memoria compartida y un solo dispatch (0,22 → 0,08 ms); quedan los casters con alpha test |
 | Sombras de contacto | hecho | en el pase de AO; sol completo, linterna solo en suelos |
