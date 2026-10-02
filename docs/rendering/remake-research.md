@@ -565,3 +565,36 @@ python selftest.py        # hash v5 + decodificación (300 casos contra hash_che
 python test_loads.py      # cargas de TMEM (300 casos contra load_check.exe)
 python demo_pipeline.py   # pipeline completo con volcados sintéticos
 ```
+
+## 9. Terreno HD por páginas: prototipo offline (Apple Market)
+
+Implementación de E2 (opción 1 de 2.8) para el área 4, entrada 0 (la de `MM64_VR_WARP=4,0`). Todo vive en `C:\Users\Usuario\Devel\tools\upscale\terrain\`; no se ejecutó el juego ni se compiló el proyecto.
+
+**Cómo carga y dibuja el terreno el juego** (leído en `RecompiledFuncs`):
+
+- Al cargar un área (`func_80073510`), `func_80036888` vuelve a subir 9 TIM globales (archivo en `0x800AC898`), `func_80036340(área, 0)` carga el sub 0 del grupo del área (terreno tipo 0x11 y vértices 0x12) y una segunda llamada carga el **banco de texturas compartido (grupo 0x26) sub `byte 0x801ACA5B − 1`** y después el sub `byte 0x801ACA59` del área. Los dos bytes los calcula `func_80072E10` según área, entrada y estado de la historia; para Apple Market entrada 0 valen 2 y 1: banco sub 1 (33 archivos de páginas y CLUT) y un sub de objetos sin texturas.
+- Un archivo de página (tipo 0x00, estilo TIM) registra su imagen como nodo {x, y, w, h, puntero} (`func_8002C8EC`; subir otra vez el mismo rectángulo reemplaza el puntero, y en el banco gana la última de dos subidas a (0x2C0,0x100) y a (0x340,0x100)). Su CLUT pasa por `func_800870A0`, que **reescribe cada entrada 0x0000 con `(suma de las 16 entradas >> 4) & ~1`** antes de guardar un puntero por cada 16 colores en las tablas `0x8017CBF0` / `0x8017D0F0` (las filas de un bloque de 16×8 quedan en x consecutivas). El hash de la paleta depende de ese arreglo.
+- Por grupo, `func_8007E8D4` carga una TLUT de 16 colores desde la CLUT `(flags >> 16) & 0x7FFF` (`func_8007BFC8`), hace `SETTIMG` CI 8b sobre la página `x = (flags & 0xF) << 6`, `y = (flags & 0x10) << 4 | (flags & 0x800) >> 2` (64×256 o 32×128 unidades de 16 bits según el bit 31) y llama a las DL del grupo, que cargan la ventana con `LOADTILE` a TMEM 0 y la dibujan con un tile CI4, clamp, paleta 0. Solo se hashea el tile 0.
+- El overlay de cada área sale de la tabla `0x800BD340` (`func_8007BEA0`). El de Apple Market (ovl9) no toca páginas, CLUT ni el archivo de terreno; ovl3/4/16/19/22 copian bloques entre páginas (`func_8002FDF4`) y otros overlays buscan CLUT para modificarlas (ovl23, por ejemplo, mezcla dos paletas en una tercera).
+
+**Resultado (Apple Market):** 84 registros, 1004 grupos y 5088 dibujos dan **946 ventanas únicas**, todas con su página y su CLUT resueltas en el banco (8 páginas, 59 combinaciones página×CLUT; las páginas decodificadas muestran los carteles de Jetlag Bakery, Akbar Toy Store o Tailor Chinos con colores coherentes).
+
+- Verificación offline: 946/946 hashes idénticos con el hasher C++ de RT64 (`hash_check.exe`) y 946/946 al reconstruir cada TMEM con la copia literal del cargador de RT64 (`load_check.exe`). La decodificación de cada ventana coincide con su recorte de la página en 900 casos; en 45 la DL del juego carga más palabras por fila que `line` y la última columna muestra el primer texel de la fila siguiente (defecto original de un texel que el recorte corrige) y 1 lee un texel pasado el borde derecho. Otras 2 ventanas (16 dibujos) leen la fila 128 de páginas de 128 filas, es decir memoria del heap: su hash no se puede predecir y quedan fuera.
+- **Probado en el juego (2026-10-02)**: con el pack en `mods`, Apple Market se ve con las texturas HD (puertas, carteles de las tiendas, banderines, letrero de la entrada y suelo), sin costuras visibles entre ventanas. No se hizo un volcado para medir el porcentaje exacto (`validate_terrain_dump.py`), pero todo lo que se ve en la vista del warp quedó reemplazado. El pack se desinstaló después de la prueba.
+- Pack: `...\terrain\out\area04_apple_market\mm64_hd_terrain_area04_w2x\mm64_hd_terrain_area04_w2x.rtz` (10 MB, 946 DDS BC7 con mips en `terrain/area04/`, low mip cache y `mod.json`, igual que el pack de modelos). Cada página se escala una sola vez (waifu2x cunet ×4, relleno de borde, alfa de 1 bit con xBRZ y umbral) y cada ventana se recorta de ella, así que las vecinas quedan continuas. Antes/después: `preview_pages.png` y `preview_windows.png` en `out\area04_apple_market\`.
+
+**Uso:**
+
+```
+cd C:\Users\Usuario\Devel\tools\upscale\terrain
+python build_terrain_pack.py --area 4                    # replay, verificaciones, escalado y pack (~50 s)
+python build_terrain_pack.py --area 4 --method siax      # otro escalador de upscale_lib.py
+python survey_areas.py                                   # cobertura de todas las áreas
+python validate_terrain_dump.py C:\mm64hd\dump_area04    # contra un volcado real de RT64
+python validate_terrain_dump.py --hash <hash>            # hash copiado del inspector (F1)
+powershell -ExecutionPolicy Bypass -File install_pack.ps1 [-Uninstall]
+```
+
+Prueba en el juego: con el juego cerrado, copiar el `.rtz` a `%LOCALAPPDATA%\MegaMan64Recompiled\mods\` (o usar `install_pack.ps1`, que no hace nada si el juego está abierto), poner `"developer_mode": true` en `graphics.json`, entrar con `MM64_VR_WARP=4,0` y alternar con F4. Para medir la coincidencia: F1 → Textures → "Start dumping textures", recorrer el área, detener el volcado y pasar la carpeta a `validate_terrain_dump.py`, que informa qué porcentaje de las ventanas de terreno volcadas está en el pack y clasifica cada falla (ventana desconocida = replay de DL; índices distintos = página; paleta distinta = CLUT o arreglo de entradas 0x0000, usado por 195 ventanas marcadas en `windows.csv`).
+
+**Pendiente para todas las áreas:** según `survey_areas.py`, 28 áreas tienen terreno en el sub 0 y en 26 se resuelven todas las páginas y CLUT con la entrada 0 y el sub del banco que mejor cubre (unas 11.700 ventanas). Falta (1) portar `func_80072E10` por área, entrada y estado de la historia en lugar de elegir el sub del banco por cobertura (varias áreas se resuelven con más de un sub y la paleta puede cambiar); (2) las áreas 5, 6 y 12 (ciudad) no tienen terreno en el sub 0 y las 1 y 23 quedan incompletas; (3) los grupos con el bit 0x8000 (quads procedurales, `func_8007CC94` / `func_8007C450`); (4) páginas y CLUT animadas por overlays (cada cuadro es otro hash: congelar la animación o generar cada cuadro). El pase de sombra (TLUT negra `0x800BD9B4`) no se reemplaza a propósito. Riesgos: mezcla de subtexturas vecinas del atlas en los bordes de ventanas de 2 o 3 texeles y las 2 ventanas que dependen del heap.
