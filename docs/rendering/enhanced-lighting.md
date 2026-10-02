@@ -59,6 +59,12 @@ factor    = lerp(factor, 1, alfaNiebla)                       (la niebla del jue
 Los colores del N64 ya traen la iluminación horneada; el factor está calibrado para que el suelo al sol quede
 cerca de x1,1 y en sombra cerca de x0,6.
 
+**Tinte del cielo**: cuando el cielo del juego no es diurno (atardecer, cielo violeta), la luz del cielo y el sol toman
+su tono: la composición lee el color medio que mide el análisis del cielo procedural (`LightingSkyAnalyzeCS`, un frame
+de retraso, buffer `t7`) y tiñe con su croma (`RT64_LIGHT_SKY_TINT` = 0,8 × lo poco diurno que sea el tono). Sin esto,
+el interior frente al atardecer del área 21 quedaba iluminado con el ambiente azulado de un cielo de día. Requiere la
+opción Sky en Enhanced (es el cielo procedural el que mide); en VR no se aplica.
+
 **Interiores y dungeons** (sin sol): ambiente 0,72 algo frío (tinte 0,94/1,0/1,08) y la linterna cálida que lleva la
 cámara (450 arriba, 550 adelante, la pone el `State`) con fuerza 0,9, radio x0,75 del del path tracer y caída
 cuadrática: un charco de luz alrededor del jugador y salas que se oscurecen lejos de él, en vez de aclararlo todo
