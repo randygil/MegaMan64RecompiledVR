@@ -46,7 +46,7 @@
 | G-buffer de normales (replay) | hecho | normales suaves, *sphere impostor* en follaje |
 | AO | hecho | GTAO a media resolución + blur bilateral |
 | Composición (sol, cielo, AO, interiores) | hecho | linterna en interiores; ajustar dungeons |
-| Cielo procedural raster | hecho | `LightingSky`, `procedural-sky.md`; opción Sky del menú |
+| Cielo procedural raster | hecho | `LightingSky`, `procedural-sky.md`; opción Sky del menú; solo reemplaza cielos diurnos que reconoce enteros (violeta, menta y atardeceres se conservan) y tiñe la luz con los cielos no diurnos |
 | God rays, bloom, grading, CAS | hecho | `PostEffects`, `post-effects.md`; intensidad = opción Effects |
 | Menú y presets | hecho | Enhanced Lighting On/Off (F3), Lighting Quality Low–Ultra, Effects y Sky compartidos con el PT |
 | MSAA | hecho | composición por superficie (`SV_Coverage`), alpha to coverage en recortes |
@@ -54,9 +54,9 @@
 | Árboles | en curso | volumen + sombras de hojas + translucidez + bordes con AA hechos; PT sin vaivén/ruido; falta viento por vértice y árboles 3D |
 | Texture pack HD | prototipo probado | pack de modelos (waifu2x) validado en el juego (texturas de personajes más nítidas); falta el terreno por páginas |
 | Reemplazo de modelos (experimento) | investigado | hook en `func_800805F8`; árbol procedural de 618 triángulos |
-| Rendimiento | en curso | *replays* fusionados hechos; quedan normales suaves O(n²) y casters con alpha test |
+| Rendimiento | en curso | *replays* fusionados, normales suaves en bloques de memoria compartida y un solo dispatch (0,22 → 0,08 ms); quedan los casters con alpha test |
 | Sombras de contacto | hecho | en el pase de AO; sol completo, linterna solo en suelos |
 | VR | hecho | cielo procedural y sol en exteriores aunque VR quite el cielo 2D; casters de un solo ojo |
 | Perfilado por pase | hecho | `RT64_PRINT_FRAME_TIME=2` |
-| Dungeons | en curso | ambiente frío + linterna cálida con caída marcada; probado con warps de cámara fija (sin guardado dentro); falta probar jugando y luces emisivas |
+| Dungeons | en curso | ambiente frío + linterna cálida con caída marcada que flota sobre Mega Man; probado con warps de cámara fija (sin guardado dentro); falta probar jugando y luces emisivas |
 | Móvil (Quest) | pendiente | apagado por defecto en Android; preset Low aún pesado en VR (~2,2 ms en la 4070S); ideas en `enhanced-lighting.md` |
