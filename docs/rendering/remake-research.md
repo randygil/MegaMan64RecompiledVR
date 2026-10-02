@@ -533,10 +533,16 @@ Escala usada: esfuerzo para un agente de código con este repo; riesgo = probabi
   - Generador: `tree3d_gen.py` (usa `tile_layout.py`; escribe `patches/tree3d_area3.c` con `Vtx`, DL y la tabla
     `{registro, offset de la entrada de grupo, dl1, dl2, DL del núcleo}`, y vistas previas con un rasterizador propio).
   - Parche: `patches/tree3d.c`, llamado cada cuadro desde `func_800276EC` (sin gancho nuevo en `us.rev1.toml`): si la
-    entrada todavía tiene sus DL originales, cambia `dl2` por un envoltorio `{G_DL dl2 original, G_DL núcleo,
-    G_ENDDL}` (solo `G_DL`/`G_ENDDL`, que los recorridos de CPU de los modos de fundido copian sin seguir). Cada carga
-    de área trae una copia nueva del archivo, así que se vuelve a parchear sola. Con la opción apagada devuelve el `dl2`
-    original. Funciona igual en VR (misma tarea de celda, mismo grupo de matrices).
+    entrada todavía tiene sus DL originales, cambia `dl2` por una lista generada: **una copia de la `dl2` original**
+    (solo usa direcciones de segmento, así que funciona en cualquier lugar) **con un `G_DL` al núcleo antes de su
+    `G_ENDDL`** (o solo el `G_DL` si la entrada no tenía `dl2`). En el modo de fundido 2, `func_8007E8D4` no emite la
+    `dl2` sino que se la pasa al recorrido de CPU `func_8007D798`, que descarta los quads muy cerca de la cámara: con la
+    copia, los quads de las tarjetas siguen pasando por ese descarte (un primer envoltorio `{G_DL dl2, G_DL núcleo}` los
+    escondía detrás de un `G_DL`, que el recorrido copia sin seguir, y se dibujaban pegados a la cámara; lo encontró la
+    revisión de código). El núcleo no se descarta. Se guarda la base del archivo con la que se parcheó cada entrada,
+    así que una entrada parcheada para otra base también se reconoce. Cada carga de área trae una copia nueva del
+    archivo y se vuelve a parchear sola; con la opción apagada vuelve la `dl2` original. Funciona igual en VR (misma
+    tarea de celda, mismo grupo de matrices).
   - Opción **"Trees"** (3D / Original, por omisión Original, **F6**), `graphics.json` `trees_option`, función del host
     `recomp_get_3d_trees_enabled` (`0x8F000104`).
   - Problemas resueltos en el camino: líneas oscuras en los cruces tarjeta/núcleo (el replay del G-buffer no tenía

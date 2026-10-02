@@ -526,6 +526,30 @@ static Gfx sTree3_39DL[277] = {
     {{ 0xDF000000, 0x00000000 }},
 };
 
+static Gfx sTree3_39Entry[21] = {
+    {{ 0x0100600C, 0x0500F7A0 }},
+    {{ 0xDE000000, 0x03000000 }},
+    {{ 0xE7000000, 0x00000000 }},
+    {{ 0xF5480600, 0x07080200 }},
+    {{ 0xE6000000, 0x00000000 }},
+    {{ 0xF4160280, 0x071BE33C }},
+    {{ 0xE7000000, 0x00000000 }},
+    {{ 0xF5400600, 0x00080200 }},
+    {{ 0xF22C0280, 0x0037C33C }},
+    {{ 0x06000602, 0xC0000406 }},
+    {{ 0xE7000000, 0x00000000 }},
+    {{ 0xF5480600, 0x07080200 }},
+    {{ 0xE6000000, 0x00000000 }},
+    {{ 0xF416033C, 0x071BE3F8 }},
+    {{ 0xE7000000, 0x00000000 }},
+    {{ 0xF5400600, 0x00080200 }},
+    {{ 0xF22C033C, 0x0037C3F8 }},
+    {{ 0x06040A08, 0xC004000A }},
+    {{ 0xDE000000, 0x04000000 }},
+    gsSPDisplayList(sTree3_39DL),
+    gsSPEndDisplayList(),
+};
+
 static Vtx sTree3_40Vtx[240] = {
     {{{ 17, -531, 0 }, 0, { 12736, 11264 }, { 156, 156, 156, 128 }}},
     {{{ 14, -531, 8 }, 0, { 12800, 11264 }, { 156, 156, 156, 128 }}},
@@ -1047,6 +1071,30 @@ static Gfx sTree3_40DL[277] = {
     {{ 0x06162E18, 0x00161800 }},
     {{ 0xDE000000, 0x04000000 }},
     {{ 0xDF000000, 0x00000000 }},
+};
+
+static Gfx sTree3_40Entry[21] = {
+    {{ 0x0100600C, 0x0500FAC0 }},
+    {{ 0xDE000000, 0x03000000 }},
+    {{ 0xE7000000, 0x00000000 }},
+    {{ 0xF5480600, 0x07080200 }},
+    {{ 0xE6000000, 0x00000000 }},
+    {{ 0xF4160280, 0x071BE33C }},
+    {{ 0xE7000000, 0x00000000 }},
+    {{ 0xF5400600, 0x00080200 }},
+    {{ 0xF22C0280, 0x0037C33C }},
+    {{ 0x06000602, 0xC0000406 }},
+    {{ 0xE7000000, 0x00000000 }},
+    {{ 0xF5480600, 0x07080200 }},
+    {{ 0xE6000000, 0x00000000 }},
+    {{ 0xF416033C, 0x071BE3F8 }},
+    {{ 0xE7000000, 0x00000000 }},
+    {{ 0xF5400600, 0x00080200 }},
+    {{ 0xF22C033C, 0x0037C3F8 }},
+    {{ 0x06040A08, 0xC004000A }},
+    {{ 0xDE000000, 0x04000000 }},
+    gsSPDisplayList(sTree3_40DL),
+    gsSPEndDisplayList(),
 };
 
 static Vtx sTree3_41Vtx[276] = {
@@ -1647,6 +1695,11 @@ static Gfx sTree3_41DL[316] = {
     {{ 0xDF000000, 0x00000000 }},
 };
 
+static Gfx sTree3_41Entry[2] = {
+    gsSPDisplayList(sTree3_41DL),
+    gsSPEndDisplayList(),
+};
+
 static Vtx sTree3_42Vtx[276] = {
     {{{ 111, -640, 0 }, 0, { 9664, 10240 }, { 165, 165, 165, 128 }}},
     {{{ 109, -640, 8 }, 0, { 9728, 10240 }, { 165, 165, 165, 128 }}},
@@ -2243,6 +2296,11 @@ static Gfx sTree3_42DL[316] = {
     {{ 0x06162E18, 0x00161800 }},
     {{ 0xDE000000, 0x04000000 }},
     {{ 0xDF000000, 0x00000000 }},
+};
+
+static Gfx sTree3_42Entry[2] = {
+    gsSPDisplayList(sTree3_42DL),
+    gsSPEndDisplayList(),
 };
 
 static Vtx sTree3_43Vtx[276] = {
@@ -2843,6 +2901,11 @@ static Gfx sTree3_43DL[316] = {
     {{ 0xDF000000, 0x00000000 }},
 };
 
+static Gfx sTree3_43Entry[2] = {
+    gsSPDisplayList(sTree3_43DL),
+    gsSPEndDisplayList(),
+};
+
 static Vtx sTree3_44Vtx[276] = {
     {{{ -81, -640, 0 }, 0, { 9664, 10240 }, { 165, 165, 165, 128 }}},
     {{{ -83, -640, 8 }, 0, { 9728, 10240 }, { 165, 165, 165, 128 }}},
@@ -3439,6 +3502,11 @@ static Gfx sTree3_44DL[316] = {
     {{ 0x06162E18, 0x00161800 }},
     {{ 0xDE000000, 0x04000000 }},
     {{ 0xDF000000, 0x00000000 }},
+};
+
+static Gfx sTree3_44Entry[2] = {
+    gsSPDisplayList(sTree3_44DL),
+    gsSPEndDisplayList(),
 };
 
 static Vtx sTree3_45Vtx[276] = {
@@ -4039,6 +4107,11 @@ static Gfx sTree3_45DL[316] = {
     {{ 0xDF000000, 0x00000000 }},
 };
 
+static Gfx sTree3_45Entry[2] = {
+    gsSPDisplayList(sTree3_45DL),
+    gsSPEndDisplayList(),
+};
+
 static Vtx sTree3_46Vtx[276] = {
     {{{ 15, -590, 0 }, 0, { 9664, 10240 }, { 161, 161, 161, 128 }}},
     {{{ 13, -590, 8 }, 0, { 9728, 10240 }, { 161, 161, 161, 128 }}},
@@ -4635,6 +4708,11 @@ static Gfx sTree3_46DL[316] = {
     {{ 0x06162E18, 0x00161800 }},
     {{ 0xDE000000, 0x04000000 }},
     {{ 0xDF000000, 0x00000000 }},
+};
+
+static Gfx sTree3_46Entry[2] = {
+    gsSPDisplayList(sTree3_46DL),
+    gsSPEndDisplayList(),
 };
 
 static Vtx sTree3_47Vtx[276] = {
@@ -5235,6 +5313,11 @@ static Gfx sTree3_47DL[316] = {
     {{ 0xDF000000, 0x00000000 }},
 };
 
+static Gfx sTree3_47Entry[2] = {
+    gsSPDisplayList(sTree3_47DL),
+    gsSPEndDisplayList(),
+};
+
 static Vtx sTree3_48Vtx[276] = {
     {{{ 15, -590, 0 }, 0, { 9664, 10240 }, { 161, 161, 161, 128 }}},
     {{{ 13, -590, 8 }, 0, { 9728, 10240 }, { 161, 161, 161, 128 }}},
@@ -5833,6 +5916,11 @@ static Gfx sTree3_48DL[316] = {
     {{ 0xDF000000, 0x00000000 }},
 };
 
+static Gfx sTree3_48Entry[2] = {
+    gsSPDisplayList(sTree3_48DL),
+    gsSPEndDisplayList(),
+};
+
 static Vtx sTree3_49Vtx[240] = {
     {{{ -17, -532, 192 }, 0, { 12736, 11264 }, { 157, 157, 157, 128 }}},
     {{{ -19, -532, 200 }, 0, { 12800, 11264 }, { 157, 157, 157, 128 }}},
@@ -6354,6 +6442,11 @@ static Gfx sTree3_49DL[277] = {
     {{ 0x06162E18, 0x00161800 }},
     {{ 0xDE000000, 0x04000000 }},
     {{ 0xDF000000, 0x00000000 }},
+};
+
+static Gfx sTree3_49Entry[2] = {
+    gsSPDisplayList(sTree3_49DL),
+    gsSPEndDisplayList(),
 };
 
 static Vtx sTree3_50Vtx[240] = {
@@ -6879,6 +6972,11 @@ static Gfx sTree3_50DL[277] = {
     {{ 0xDF000000, 0x00000000 }},
 };
 
+static Gfx sTree3_50Entry[2] = {
+    gsSPDisplayList(sTree3_50DL),
+    gsSPEndDisplayList(),
+};
+
 static Vtx sTree3_52Vtx[240] = {
     {{{ -177, -532, -32 }, 0, { 12736, 11264 }, { 157, 157, 157, 128 }}},
     {{{ -179, -532, -24 }, 0, { 12800, 11264 }, { 157, 157, 157, 128 }}},
@@ -7400,6 +7498,11 @@ static Gfx sTree3_52DL[277] = {
     {{ 0x06162E18, 0x00161800 }},
     {{ 0xDE000000, 0x04000000 }},
     {{ 0xDF000000, 0x00000000 }},
+};
+
+static Gfx sTree3_52Entry[2] = {
+    gsSPDisplayList(sTree3_52DL),
+    gsSPEndDisplayList(),
 };
 
 static Vtx sTree3_53Vtx[276] = {
@@ -8000,6 +8103,11 @@ static Gfx sTree3_53DL[316] = {
     {{ 0xDF000000, 0x00000000 }},
 };
 
+static Gfx sTree3_53Entry[2] = {
+    gsSPDisplayList(sTree3_53DL),
+    gsSPEndDisplayList(),
+};
+
 static Vtx sTree3_54Vtx[276] = {
     {{{ 32, -640, 16 }, 0, { 9664, 10240 }, { 165, 165, 165, 128 }}},
     {{{ 30, -640, 24 }, 0, { 9728, 10240 }, { 165, 165, 165, 128 }}},
@@ -8596,6 +8704,11 @@ static Gfx sTree3_54DL[316] = {
     {{ 0x06162E18, 0x00161800 }},
     {{ 0xDE000000, 0x04000000 }},
     {{ 0xDF000000, 0x00000000 }},
+};
+
+static Gfx sTree3_54Entry[2] = {
+    gsSPDisplayList(sTree3_54DL),
+    gsSPEndDisplayList(),
 };
 
 static Vtx sTree3_55Vtx[276] = {
@@ -9196,6 +9309,11 @@ static Gfx sTree3_55DL[316] = {
     {{ 0xDF000000, 0x00000000 }},
 };
 
+static Gfx sTree3_55Entry[2] = {
+    gsSPDisplayList(sTree3_55DL),
+    gsSPEndDisplayList(),
+};
+
 static Vtx sTree3_56Vtx[276] = {
     {{{ 0, -640, -16 }, 0, { 9664, 10240 }, { 165, 165, 165, 128 }}},
     {{{ -2, -640, -8 }, 0, { 9728, 10240 }, { 165, 165, 165, 128 }}},
@@ -9792,6 +9910,11 @@ static Gfx sTree3_56DL[316] = {
     {{ 0x06162E18, 0x00161800 }},
     {{ 0xDE000000, 0x04000000 }},
     {{ 0xDF000000, 0x00000000 }},
+};
+
+static Gfx sTree3_56Entry[2] = {
+    gsSPDisplayList(sTree3_56DL),
+    gsSPEndDisplayList(),
 };
 
 static Vtx sTree3_57Vtx[276] = {
@@ -10392,6 +10515,11 @@ static Gfx sTree3_57DL[316] = {
     {{ 0xDF000000, 0x00000000 }},
 };
 
+static Gfx sTree3_57Entry[2] = {
+    gsSPDisplayList(sTree3_57DL),
+    gsSPEndDisplayList(),
+};
+
 static Vtx sTree3_58Vtx[276] = {
     {{{ 96, -590, 112 }, 0, { 9664, 10240 }, { 161, 161, 161, 128 }}},
     {{{ 94, -590, 120 }, 0, { 9728, 10240 }, { 161, 161, 161, 128 }}},
@@ -10988,6 +11116,11 @@ static Gfx sTree3_58DL[316] = {
     {{ 0x06162E18, 0x00161800 }},
     {{ 0xDE000000, 0x04000000 }},
     {{ 0xDF000000, 0x00000000 }},
+};
+
+static Gfx sTree3_58Entry[2] = {
+    gsSPDisplayList(sTree3_58DL),
+    gsSPEndDisplayList(),
 };
 
 static Vtx sTree3_59Vtx[276] = {
@@ -11588,6 +11721,11 @@ static Gfx sTree3_59DL[316] = {
     {{ 0xDF000000, 0x00000000 }},
 };
 
+static Gfx sTree3_59Entry[2] = {
+    gsSPDisplayList(sTree3_59DL),
+    gsSPEndDisplayList(),
+};
+
 static Vtx sTree3_60Vtx[276] = {
     {{{ -64, -590, -112 }, 0, { 9664, 10240 }, { 161, 161, 161, 128 }}},
     {{{ -66, -590, -104 }, 0, { 9728, 10240 }, { 161, 161, 161, 128 }}},
@@ -12186,28 +12324,33 @@ static Gfx sTree3_60DL[316] = {
     {{ 0xDF000000, 0x00000000 }},
 };
 
+static Gfx sTree3_60Entry[2] = {
+    gsSPDisplayList(sTree3_60DL),
+    gsSPEndDisplayList(),
+};
+
 const Tree3DRecord gTree3DArea3[] = {
-    { 39, 0x2FBB4, 0x11470, 0x11520, sTree3_39DL }, // star3
-    { 40, 0x2FC2C, 0x117A8, 0x11858, sTree3_40DL }, // star3
-    { 41, 0x2FCA4, 0x11AE0, 0x0, sTree3_41DL }, // T
-    { 42, 0x2FCF4, 0x11D50, 0x0, sTree3_42DL }, // T
-    { 43, 0x2FD44, 0x11FC0, 0x0, sTree3_43DL }, // T
-    { 44, 0x2FD94, 0x12230, 0x0, sTree3_44DL }, // T
-    { 45, 0x2FDE4, 0x124A0, 0x0, sTree3_45DL }, // T
-    { 46, 0x2FE34, 0x12710, 0x0, sTree3_46DL }, // T
-    { 47, 0x2FE84, 0x12980, 0x0, sTree3_47DL }, // T
-    { 48, 0x2FED4, 0x12BF0, 0x0, sTree3_48DL }, // T
-    { 49, 0x2FF24, 0x12E60, 0x0, sTree3_49DL }, // T
-    { 50, 0x2FF74, 0x130D0, 0x0, sTree3_50DL }, // T
-    { 52, 0x2FFC4, 0x13340, 0x0, sTree3_52DL }, // T
-    { 53, 0x30014, 0x135B0, 0x0, sTree3_53DL }, // T
-    { 54, 0x30064, 0x13820, 0x0, sTree3_54DL }, // T
-    { 55, 0x300B4, 0x13A90, 0x0, sTree3_55DL }, // T
-    { 56, 0x30104, 0x13D00, 0x0, sTree3_56DL }, // T
-    { 57, 0x30154, 0x13F70, 0x0, sTree3_57DL }, // T
-    { 58, 0x301A4, 0x141E0, 0x0, sTree3_58DL }, // T
-    { 59, 0x301F4, 0x14450, 0x0, sTree3_59DL }, // T
-    { 60, 0x30244, 0x146C0, 0x0, sTree3_60DL }, // T
+    { 39, 0x2FBB4, 0x11470, 0x11520, sTree3_39Entry }, // star3
+    { 40, 0x2FC2C, 0x117A8, 0x11858, sTree3_40Entry }, // star3
+    { 41, 0x2FCA4, 0x11AE0, 0x0, sTree3_41Entry }, // T
+    { 42, 0x2FCF4, 0x11D50, 0x0, sTree3_42Entry }, // T
+    { 43, 0x2FD44, 0x11FC0, 0x0, sTree3_43Entry }, // T
+    { 44, 0x2FD94, 0x12230, 0x0, sTree3_44Entry }, // T
+    { 45, 0x2FDE4, 0x124A0, 0x0, sTree3_45Entry }, // T
+    { 46, 0x2FE34, 0x12710, 0x0, sTree3_46Entry }, // T
+    { 47, 0x2FE84, 0x12980, 0x0, sTree3_47Entry }, // T
+    { 48, 0x2FED4, 0x12BF0, 0x0, sTree3_48Entry }, // T
+    { 49, 0x2FF24, 0x12E60, 0x0, sTree3_49Entry }, // T
+    { 50, 0x2FF74, 0x130D0, 0x0, sTree3_50Entry }, // T
+    { 52, 0x2FFC4, 0x13340, 0x0, sTree3_52Entry }, // T
+    { 53, 0x30014, 0x135B0, 0x0, sTree3_53Entry }, // T
+    { 54, 0x30064, 0x13820, 0x0, sTree3_54Entry }, // T
+    { 55, 0x300B4, 0x13A90, 0x0, sTree3_55Entry }, // T
+    { 56, 0x30104, 0x13D00, 0x0, sTree3_56Entry }, // T
+    { 57, 0x30154, 0x13F70, 0x0, sTree3_57Entry }, // T
+    { 58, 0x301A4, 0x141E0, 0x0, sTree3_58Entry }, // T
+    { 59, 0x301F4, 0x14450, 0x0, sTree3_59Entry }, // T
+    { 60, 0x30244, 0x146C0, 0x0, sTree3_60Entry }, // T
 };
 
 const int gTree3DArea3Count = 21;

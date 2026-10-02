@@ -146,8 +146,10 @@ de la iluminación la muestra junto con el shadow map.
   (una celda = 30000 unidades) una sola sombra cubría el área entera y no se notaba el paso de las nubes; con 12 las
   manchas miden del orden de 2500 unidades y cruzan el área a ~40 unidades/s. Nadie puede comparar la sombra con la
   nube de arriba, así que la incoherencia no se ve.
-- Calidad Low: 2 octavas sin *warp*; Medium en adelante: 3 octavas + *warp* de 2. Costo medido en el bosque
-  (RTX 4070 SUPER, 1600x960 MSAA 4x): composición 0,15 → 0,20 ms (~0,05 ms).
+- Apagadas en la calidad Low (gráficas integradas y visores autónomos); de Medium en adelante: 3 octavas + *warp* de
+  2, y solo en los píxeles que el shadow map deja con algo de sol. El análisis del cielo solo se lee cuando el CPU las
+  activó (la entrada de una escena sin analizar no se debe leer; un NaN en Vulkan dejaba la sombra en NaN). Costo
+  medido en el bosque (RTX 4070 SUPER, 1600x960 MSAA 4x): ~0,03–0,05 ms.
 
 ### 4.5 Keying del fondo (qué píxeles se reemplazan)
 

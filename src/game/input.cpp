@@ -133,16 +133,18 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
             ) {
                 recompui::toggle_fullscreen();
             }
-            if (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F2) {
+            // Graphics toggles: not while a key is being bound (the key is the binding) nor on key repeat (each toggle
+            // rewrites the config files). F4 toggles the texture packs in RT64's developer mode.
+            const bool graphicsToggle = (scanning_device == recomp::InputDevice::COUNT) && !event->key.repeat;
+            if (graphicsToggle && (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F2)) {
                 zelda64::set_path_tracing_enabled(!zelda64::get_path_tracing_enabled());
                 zelda64::save_config();
             }
-            if (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F3) {
+            if (graphicsToggle && (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F3)) {
                 zelda64::set_enhanced_lighting_enabled(!zelda64::get_enhanced_lighting_enabled());
                 zelda64::save_config();
             }
-            // F4 toggles the texture packs in RT64's developer mode.
-            if (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F6) {
+            if (graphicsToggle && (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F6)) {
                 zelda64::set_3d_trees_enabled(!zelda64::get_3d_trees_enabled());
                 zelda64::save_config();
             }

@@ -91,7 +91,8 @@ Scripts en `C:\Users\Usuario\Devel\tools` (PowerShell; llamarlos con `powershell
 | `city_test.ps1`, `vr_run.ps1` | Pruebas del build VR de escritorio (simulador o modo debug). |
 
 Atajos dentro del juego: **F2** alterna path tracing, **F3** la iluminación raster mejorada, **F6** los árboles 3D
-(opción "Trees"); Esc abre el menú. Con `developer_mode` RT64 usa además F1 (inspector), F2, F3 (RDRAM) y **F4 (packs
+(opción "Trees"); Esc abre el menú. Los tres se ignoran mientras se asigna una tecla en el menú de controles y al
+mantener la tecla apretada (cada cambio reescribe los archivos de configuración). Con `developer_mode` RT64 usa además F1 (inspector), F2, F3 (RDRAM) y **F4 (packs
 de texturas)**: por eso los árboles no usan F4.
 
 Árboles 3D (`patches/tree3d.c`, experimento E3 de `remake-research.md`): los datos salen de
