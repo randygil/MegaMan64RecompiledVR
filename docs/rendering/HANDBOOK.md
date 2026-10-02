@@ -279,6 +279,16 @@ Regla: **todo lo nuevo debe ser agnóstico al juego**.
   (G-buffer y AO rotos solo en D3D12). Corregido en `plume_d3d12.cpp` (commit de rt64 `6b8c2f1`). Es la causa más
   probable de que el path tracer colgara el GPU en D3D12 (sin verificar). La iluminación raster ya se ve igual en
   D3D12 y Vulkan.
+- **Validación de Vulkan** (D3D12 es más permisivo y es la API por omisión en Windows, pero Android/Quest usa Vulkan):
+  `$env:MM64_VK_VALIDATION = "1"` antes de `light_tune_api.ps1 -Api Vulkan ...` (o `light_tune.ps1` con `api_option`
+  en Vulkan) activa `VK_LAYER_KHRONOS_validation`; los errores quedan en `game_out.txt`. Contarlos por VUID:
+  `Select-String -Pattern "VUID-[A-Za-z0-9_-]*" -AllMatches`. Encontrados y corregidos (2026-10-02): el `copyColor` de
+  la iluminación actualizaba el mismo descriptor set dos veces en el frame (cielo y post) y el segundo `setTexture`
+  sobre un set ya enlazado invalida el command list ("updated without UPDATE_AFTER_BIND", seguido de cientos de
+  errores `commandBuffer-recording`): ahora cada copia del frame usa su propio set. Regla: **un descriptor set no se
+  actualiza después de enlazarlo en el mismo frame**; usar sets por llamada o actualizarlos en `updateDescriptorSets`
+  antes de grabar. Y plume pasaba scissors con origen negativo (-1) a Vulkan, que exige ≥ 0: se recortan en
+  `VulkanCommandList::setScissors`.
 - No crear texturas ni framebuffers en mitad de la grabación de un command list que todavía los usa en el frame
   (el `copyColor` de la iluminación los recreaba al cambiar de formato): crearlos en `finish()`, antes de grabar.
 - **"Una superficie sale oscura"**: antes de buscar un bug, mirar `RT64_LIGHT_DEBUG 3` (sombra) y `7` (distancia al
