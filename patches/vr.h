@@ -29,6 +29,8 @@ DECLARE_FUNC(void, recomp_vr_get_frame, VrFrame* out);
 DECLARE_FUNC(void, recomp_vr_set_stereo, s32 stereo);
 // Short vibration on a controller (0 left, 1 right), strength from 0 to 100.
 DECLARE_FUNC(void, recomp_vr_haptic, s32 hand, s32 strength);
+// Tells the host the frame being built has a sky, which VR leaves out, so the renderer lights it as an outdoor scene.
+DECLARE_FUNC(void, recomp_vr_report_sky);
 
 #ifdef MIPS
 struct PsxMatrix;

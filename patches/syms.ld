@@ -63,3 +63,4 @@ recomp_get_mouse_camera_wheel = 0x8F0000F0;
 recomp_vr_get_frame = 0x8F0000F4;
 recomp_vr_set_stereo = 0x8F0000F8;
 recomp_vr_haptic = 0x8F0000FC;
+recomp_vr_report_sky = 0x8F000100;

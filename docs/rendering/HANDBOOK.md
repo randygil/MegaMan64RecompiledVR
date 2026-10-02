@@ -84,6 +84,9 @@ Scripts en `C:\Users\Usuario\Devel\tools` (PowerShell; llamarlos con `powershell
 | `light_run.ps1 [-Tuning "N v;N v"] [-Warp a,e]` | Arranca con la iluminación raster (`RT64_LIGHTING=1`, PT apagado) y captura. |
 | `light_tune.ps1 -Sets @("label|N v;N v",...) [-Warp a,e] [-Full] [-SettleMs 1500]` | Una ejecución, varios sets de tuning en vivo; captura y tiempo de frame (CPU y GPU) por set. Con `RT64_LIGHT_PRINT=1` deja en `game_err.txt` las escenas de iluminación. |
 | `light_tune_api.ps1 -Api D3D12 -Sets @(...)` | Igual que `light_tune.ps1` con otra API gráfica; restaura `graphics.json` al terminar. |
+| `vr_tune.ps1 -Sets @(...) [-Area n]` | Igual que `light_tune.ps1` con el build VR de escritorio en modo debug (los dos ojos lado a lado, sin casco; `Downloads\MegaMan64Recompiled-VR`). Con warps de área a veces termina en el menú de ítems; sin warp (bosque) funciona. |
+| `area_scan.ps1 -Areas @("14,0","26,0",...)` | Un arranque por área con el debug warp; captura cada una y arma `shots\scan_sheet.png` (para buscar dungeons). |
+| `desktop_vr_build.sh` | Compila los parches (zig como compilador MIPS), corre N64Recomp y el build VR de escritorio. Si solo cambia C++, basta `cfg_vr.bat` (ver el script). |
 | `city_test.ps1`, `vr_run.ps1` | Pruebas del build VR de escritorio (simulador o modo debug). |
 
 Atajos dentro del juego: **F2** alterna path tracing, **F3** la iluminación raster mejorada; Esc abre el menú.
@@ -94,7 +97,12 @@ persisten entre llamadas.
 
 Comparar con números: `RT64_PRINT_FRAME_TIME=1` imprime en stderr el promedio de 120 frames
 (`Frame render time: X ms, GPU Y ms (RT on|off)`): X es el tiempo del frame de render (CPU que espera al GPU) e Y el
-tiempo de GPU medido con timestamps.
+tiempo de GPU medido con timestamps. Con `RT64_PRINT_FRAME_TIME=2` además imprime el tiempo de GPU de cada pase
+(`GPU passes (ms): uploads, rsp, world vertices, smooth normals, shadow map, raster, gbuffer, ao, compose, sky, post...`).
+Los marcadores se ponen con `gpuMarker(commandList, "nombre")` (`render/rt64_tuning.h`): cada uno mide desde el
+anterior. Los scripts respetan un `RT64_PRINT_FRAME_TIME` ya puesto (`$env:RT64_PRINT_FRAME_TIME = "2"; & light_tune.ps1 ...`).
+El valor impreso es el promedio de los últimos 120 frames: con 30 fps (VR debug) hacen falta ~9 s por set
+(`-SettleMs 9000`) o se lee el set anterior.
 
 Para combinar capturas en una cuadrícula (comparar sets) basta PIL:
 `python -c "from PIL import Image; ..."` pegando las imágenes de `shots\` en una sola (ver ejemplos en el historial).
@@ -156,6 +164,11 @@ Estos datos viven **solo en el host** (`src/main/rt64_render_context.cpp`, `src/
 - Árboles: tarjetas cruzadas sin luz con `cvgXAlpha` (alpha test). El mar del área 6 es parte del fondo 2D.
 - El juego corre a 30 fps; RT64 interpola a la tasa de la pantalla si `rr_option` es Display.
 - Huesos de Mega Man: 0 torso, 1 cabeza, 2-4 brazo derecho, 5-7 izquierdo, 8 cadera, 9-11 / 12-14 piernas.
+- **VR**: el juego dibuja cada ojo en una mitad del framebuffer (dos proyecciones perspectiva, una escena de
+  iluminación por ojo). `patches/vr.c` quita el cielo 2D (pool 3) porque en el casco se desliza distinto que el mundo y
+  marea; en su lugar `vr_draw_background` pinta el color de la niebla. Como RT64 ya no ve el cielo, el parche avisa con
+  `recomp_vr_report_sky()` → `zelda64::renderer::report_sky_background()` → `Application::setSkyBackgroundHint(true)`:
+  la escena se trata como exterior (sol, sombras) y recibe el **cielo procedural**, que sí queda fijo en el mundo.
 
 ## 6. Arquitectura de RT64 (lo necesario para tocar el render)
 
@@ -211,8 +224,9 @@ rayos, CAS, grading, viñeta) y Sky Original apaga el cielo procedural raster (`
 
 Regla: **todo lo nuevo debe ser agnóstico al juego**.
 - RT64 solo consume pistas genéricas del host: rotación/traslación mundo→vista (`setWorldViewRotation/Translation`),
-  clave de escena (`setSceneKey`), "el sol requiere cielo de fondo" (`setSunRequiresSkyBackground`), y las que se
-  agreguen (luces de interiores, dirección del sol, etc.). Nada de direcciones de RAM ni ids de área en RT64.
+  clave de escena (`setSceneKey`), "el sol requiere cielo de fondo" (`setSunRequiresSkyBackground`), "hay un cielo que
+  RT64 no ve" (`setSkyBackgroundHint`, p. ej. porque el host lo quitó en VR), y las que se agreguen (luces de
+  interiores, dirección del sol, etc.). Nada de direcciones de RAM ni ids de área en RT64.
 - Para otro juego N64 en RT64: implementar en el host la lectura de su cámara/escena y llamar a las mismas APIs.
   Juegos que no hornean la cámara en las matrices ya tienen una matriz de vista válida en RT64.
 - Para PS1 (otro renderer): reutilizar los shaders y algoritmos (shadow map estable, AO, composición, cielo,
@@ -240,7 +254,11 @@ Regla: **todo lo nuevo debe ser agnóstico al juego**.
   los datos extra (normales) se obtienen volviendo a dibujar la geometría (*replay*).
 - En Bash, los heredocs largos con comillas a veces fallan ("unexpected EOF"): escribir el script con la herramienta
   Write y ejecutarlo (`python archivo.py`). Hay un helper de parches en el scratchpad de la sesión (`patchlib.py`).
-- Con `core.autocrlf=true` da igual si un script escribe LF o CRLF: git normaliza.
+- **Finales de línea**: con `core.autocrlf=true` git normaliza los archivos guardados con LF en el índice, pero algunos
+  de RT64 están guardados con CRLF (`git ls-files --eol`: `i/crlf`, p. ej. `rt64_framebuffer_renderer.cpp`). Si se
+  editan con `sed -i` (Git Bash los deja en LF) el diff abarca el archivo entero: volver a CRLF antes del commit
+  (`python -c` que reemplace `\n` por `\r\n`) y revisar `git diff --stat`. Los scripts de Python en modo texto
+  escriben CRLF en Windows, que coincide.
 - **plume D3D12, samplers inmutables**: `D3D12DescriptorSet` reservaba un hueco del heap de vistas por cada sampler
   inmutable, pero la root signature los excluye de las tablas: todos los descriptores posteriores quedaban corridos
   (G-buffer y AO rotos solo en D3D12). Corregido en `plume_d3d12.cpp` (commit de rt64 `6b8c2f1`). Es la causa más
@@ -255,3 +273,6 @@ Regla: **todo lo nuevo debe ser agnóstico al juego**.
   sale morado `(0,-1,0)`, no verde.
 - `RT64_LIGHT_PRINT=1` imprime cada 120 frames las escenas de iluminación (rect, sol, cámara, casters, texel); si una
   superficie no está en ninguna escena, o hay más escenas de las esperadas, ahí se ve.
+- Probado y descartado: un pre-pase que copiaba la profundidad (la muestra más lejana) a un depth buffer de una
+  muestra para que el *replay* del G-buffer tuviera early-Z. En escritorio no ganó nada (el G-buffer no está limitado
+  por overdraw) y en VR con MSAA 4x salió más caro: leer un depth buffer MSAA en un shader es caro.

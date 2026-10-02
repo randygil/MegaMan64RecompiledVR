@@ -458,7 +458,10 @@ void vr_adjust_part(s32 bone, void* partMtxPtr) {
     }
 }
 
+static bool sSkyReported = FALSE;
+
 void vr_begin_frame_draw(void) {
+    sSkyReported = FALSE;
     if (sMenuFrames > 0) {
         sMenuFrames--;
     }
@@ -888,6 +891,10 @@ void vr_fix_rects(Gfx* start, Gfx* end, s32 eye, s32 pool) {
                 // it slides at a different rate than the world when turning, which is very uncomfortable. It's left
                 // out, and vr_draw_background fills its place with the fog color instead.
                 if (pool == SKY_POOL) {
+                    if (!sSkyReported) {
+                        sSkyReported = TRUE;
+                        recomp_vr_report_sky();
+                    }
                     Gfx* last = (g + 2 < end) ? g + 2 : g;
                     for (; g <= last; g++) {
                         g->words.w0 = 0; // G_NOOP

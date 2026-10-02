@@ -52,6 +52,9 @@ namespace zelda64 {
         void set_path_tracing_enabled(bool enabled);
         void set_enhanced_lighting_enabled(bool enabled);
         void set_lighting_quality(int quality);
+        // The game drew a sky behind the current frame that the renderer doesn't see (the VR mode removes the 2D sky),
+        // so the frame is lit as an outdoor scene and gets the procedural sky.
+        void report_sky_background();
         bool is_path_tracing_supported();
         // 0 none, 1 subtle, 2 full.
         void set_path_tracing_effects(int level);

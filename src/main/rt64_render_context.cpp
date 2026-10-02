@@ -374,6 +374,9 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
 
 zelda64::renderer::RT64Context::~RT64Context() = default;
 
+// Set by report_sky_background, taken by the next display list.
+static std::atomic<bool> sky_background_reported = false;
+
 // The game transforms its geometry with the camera already applied, so RT64 has no world space to place the sun in.
 // The camera rotation is read from the game's current view matrix (PSX style, 4.12 fixed point and -Y up in the world)
 // and converted into a rotation from a world with +Y up into the space of the geometry.
@@ -437,6 +440,7 @@ static void update_world_view_rotation(RT64::Application* app, const uint8_t* rd
     last_area = area;
     app->setSunRequiresSkyBackground(true);
     app->setSceneKey(uint16_t(area));
+    app->setSkyBackgroundHint(sky_background_reported.exchange(false));
 }
 
 void zelda64::renderer::RT64Context::send_dl(const OSTask* task) {
@@ -481,6 +485,10 @@ void zelda64::renderer::set_enhanced_lighting_enabled(bool enabled) {
 
 void zelda64::renderer::set_lighting_quality(int quality) {
     RT64::setRasterLightingQuality(quality);
+}
+
+void zelda64::renderer::report_sky_background() {
+    sky_background_reported = true;
 }
 
 void zelda64::renderer::set_path_tracing_sky(bool enhanced) {

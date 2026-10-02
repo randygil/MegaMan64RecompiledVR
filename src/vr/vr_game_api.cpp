@@ -189,6 +189,16 @@ extern "C" void recomp_vr_set_stereo(uint8_t* rdram, recomp_context* ctx) {
     vr_set_render_stereo(_arg<0, int32_t>(rdram, ctx) != 0);
 }
 
+namespace zelda64::renderer {
+    void report_sky_background();
+}
+
+// Called when the game draws its 2D sky, which VR leaves out: the renderer still lights the scene as an outdoor one
+// and draws its procedural sky, which stays fixed in the world.
+extern "C" void recomp_vr_report_sky(uint8_t* rdram, recomp_context* ctx) {
+    zelda64::renderer::report_sky_background();
+}
+
 extern "C" void recomp_vr_haptic(uint8_t* rdram, recomp_context* ctx) {
     int32_t hand = _arg<0, int32_t>(rdram, ctx);
     int32_t strength = _arg<1, int32_t>(rdram, ctx); // 0 to 100.

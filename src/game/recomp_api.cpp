@@ -94,6 +94,9 @@ extern "C" void recomp_vr_set_stereo(uint8_t* rdram, recomp_context* ctx) {
 extern "C" void recomp_vr_haptic(uint8_t* rdram, recomp_context* ctx) {
 }
 
+extern "C" void recomp_vr_report_sky(uint8_t* rdram, recomp_context* ctx) {
+}
+
 // Debugging: MM64_VR_WARP=<area>[,<entrance>[,<load>]] replaces the area of the game's <load>th area load (1 by
 // default, the save's) with that one (4 is Apple Market), so any area can be tested quickly.
 extern "C" void recomp_vr_debug_warp(uint8_t* rdram, recomp_context* ctx) {

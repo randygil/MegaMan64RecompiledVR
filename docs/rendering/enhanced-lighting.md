@@ -115,6 +115,41 @@ Con todo (iluminación Medium + cielo + post, *replays* fusionados): bosque ≈ 
 calle de la ciudad ≈ 3,0 ms y 1,95 ms de GPU; sin iluminación ≈ 1,57 / 0,93 ms. A 165 Hz no baja de 165 FPS
 (el path tracer daba ~81 FPS).
 
+GPU por pase (`RT64_PRINT_FRAME_TIME=2`, ms por frame, bosque, Medium):
+
+| Pase | Escritorio 1600x960 MSAA 4x | VR debug, 2 ojos de 640x960 | VR, preset Low |
+|---|---|---|---|
+| normales suaves | 0,20 | 0,75 | — |
+| shadow map | 0,30 | 0,55 (0,83 antes de quitar los casters repetidos del otro ojo) | 0,25 |
+| raster del juego | 0,13 | 0,51 | 0,53 |
+| G-buffer | 0,16 | 0,58 | ~0,3 |
+| AO | 0,16 | 0,42 | — |
+| composición | 0,30–0,37 | 0,37 | 0,5 |
+| cielo | 0,11 | 0,47 | 0,43 |
+| post | 0,14 | 0,52 | 0,41 |
+
+En VR todo se hace dos veces (una escena por ojo) y el campo de visión ancho mete más geometría. Lo más caro con MSAA
+es leer el depth buffer multisample (composición, cielo). Para el Quest el preset Low sigue siendo pesado: ver
+"Plataformas móviles" abajo.
+
+## VR
+
+- Cada ojo es una escena de iluminación (su propia proyección y mitad del framebuffer); G-buffer, AO, composición,
+  cielo y post corren por ojo. El shadow map se hace una vez con los casters del primer ojo: el otro dibuja la misma
+  geometría con la misma matriz de modelo, así que sus casters se descartan (`Caster::sceneIndex`).
+- El modo VR quita el cielo 2D del juego (marea en el casco). El parche lo informa al host y este a RT64 con
+  `setSkyBackgroundHint`, así que las áreas exteriores tienen sol, sombras y el cielo procedural (fijo en el mundo,
+  cómodo en VR) en vez de un fondo plano del color de la niebla.
+- El FOV ancho agranda la esfera del shadow map (texel ~5,9 unidades contra ~2,8 en escritorio): las sombras se ven
+  más blandas. Unas cascadas lo resolverían.
+
+## Plataformas móviles (Quest/Android)
+
+Sin medir en el casco. Por los números de escritorio, el preset Low en VR cuesta ~2,2 ms de una RTX 4070 SUPER, lo que
+en un Adreno 650 sería del orden de decenas de ms: demasiado. Ideas para un preset móvil: sin G-buffer (normales de la
+profundidad; el follaje pierde el volumen), composición de una pasada sin el tratamiento por superficie del MSAA,
+cielo a un cuarto de resolución, post reducido a grading (sin bloom ni rayos), shadow map de 1024 solo cada dos frames.
+
 ## Portabilidad
 
 - Genérico: shaders `Lighting*.hlsl/.hlsli`, `rt64_lighting_params.h`, `computeStableShadowMatrix`, la composición,
