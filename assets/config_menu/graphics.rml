@@ -473,13 +473,13 @@
                         <b>Enhanced</b> replaces the sky of outdoor scenes with a physically based sky: an atmosphere lit by the sun and clouds that move with the wind. The parts of the game's background that aren't sky, like mountains or buildings, are kept. <b>Original</b> uses the game's sky. Used by both the enhanced lighting and path tracing.
                     </p>
                     <p data-if="cur_config_index == 10">
-                        Adds sun shadows, ambient occlusion, light from the sky and shading that follows the shape of every surface to the game, with classic real time techniques that work on any GPU and cost far less than path tracing. Trees and bushes are lit like round volumes and cast leaf shaped shadows. You can also use <b>F3</b> to toggle it.
+                        Adds sun shadows, contact shadows, ambient occlusion, light from the sky and shading that follows the shape of every surface to the game, with classic real time techniques that work on any GPU and cost far less than path tracing. Trees and bushes are lit like round volumes and cast leaf shaped shadows. Interiors and ruins get a warm light that follows Mega Man. You can also use <b>F3</b> to toggle it.
                         <br />
                         <br />
                         When <b>Path Tracing</b> is on it replaces this lighting.
                     </p>
                     <p data-if="cur_config_index == 11">
-                        Cost of the enhanced lighting. <b>Low</b> is meant for integrated GPUs and handhelds: smaller shadow maps and no ambient occlusion. <b>Ultra</b> uses the sharpest shadows and the best ambient occlusion.
+                        Cost of the enhanced lighting. <b>Low</b> is meant for integrated GPUs, handhelds and standalone VR headsets: smaller shadow maps, no ambient occlusion or contact shadows and simpler effects. <b>Ultra</b> uses the sharpest shadows and the best ambient occlusion.
                     </p>
                     <p data-if="cur_config_index == 8">
                         Strength of the effects added on top of the enhanced lighting or path tracing: bloom, light shafts from the sun, sharpening, color grading and vignette (path tracing also adds light scattering in the air, the sun in the sky and texture relief). <b>Off</b> keeps only the lighting and shadows.
