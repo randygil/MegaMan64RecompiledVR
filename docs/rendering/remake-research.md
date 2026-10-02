@@ -607,6 +607,16 @@ Escala usada: esfuerzo para un agente de código con este repo; riesgo = probabi
 - **Qué:** cargar automáticamente desde el pack un `rt64-materials.json` con las bibliotecas de presets que el fork ya tiene (2.9): emisivo (`selfLight`) para lámparas, pantallas y lava; reflejo para agua y metal; luces puntuales que siguen a objetos (antorchas).
 - **Prototipo mínimo:** en `TextureCache::loadReplacementDirectories` (o en el host al recargar packs) leer el archivo y volcarlo en `State::drawCallLibrary` / `materialLibrary` / `lightsLibrary`; autorar 5 materiales de un dungeon con el inspector ("Materials", "Draw calls", "Lights") y guardarlos.
 - **Esfuerzo / riesgo / impacto:** 1–2 días para la carga automática + autoría / bajo / alto en dungeons con path tracing; la iluminación raster nueva debería leer el mismo dato (coordinar con ese trabajo).
+- **Hallazgos para la iluminación raster (2026-10-02):** el brillo emisivo por color de la composición (`LightingEmissiveCS`,
+  apagado por defecto, ver `enhanced-lighting.md`) no distingue las lámparas de los estandartes. Marcar texturas por hash
+  tampoco alcanza solo: en las dungeons de MM64 las lámparas están **pintadas dentro de la textura de la pared** (las
+  naranjas de 20,0 son unos píxeles de la ventana del metal), así que un flag por textura haría brillar la pared entera.
+  Haría falta un material con **clave de color** (brillan los texeles cercanos a un color dado: el G-buffer ya muestrea la
+  textura en los recortes y podría escribir ese peso) o un **mapa emisivo** en el pack, o las presets por draw call que
+  el fork ya tiene para el path tracer, autoradas con el inspector. Un barrido por contenido de las 19 811 ventanas del
+  pack HD (`C:\Users\Usuario\Devel\tools\upscale\terrain\material_candidates.py`: fracción de texeles brillantes y
+  coloridos o blancos, hojas de contacto en `out\materials\`) devuelve sobre todo ventanas de color liso (azul, blanco,
+  naranja), paredes blancas y tiras de paleta: sirve para revisar a mano, no para decidir solo.
 
 ### E6. Mapas de normales y rugosidad en los packs
 
