@@ -834,3 +834,85 @@ powershell -ExecutionPolicy Bypass -File install_all.ps1 [-Uninstall] [-RemoveAr
 **Riesgos:** (1) las mezclas de CLUT de los overlays; (2) las secuencias dependientes de la historia generan ventanas que una partida concreta nunca ve (más tamaño, no errores); (3) la regla de las secuencias derivadas descarta variantes de grupos que ya resuelve una carga fresca: si el juego mostrara justo esa variante, se vería la textura original; (4) la fase supuesta de ovl3 y el criterio de "bloque verificado" de las cascadas; (5) los nombres de casi todas las áreas siguen sin confirmar en el juego.
 
 **Prueba en el juego del pack combinado (2026-10-02):** instalado solo durante la prueba (y quitado después, con `mods.json` restaurado), con capturas sin y con el pack de la misma build: `area_scan.ps1 -Areas @("save","4,0","5,0","14,1","20,0","26,0","15,0","16,0") -Full -Suffix "_sd"` (y `"_hd"` con el pack), y la hoja `shots\hdcmp_sheet.png` más recortes `hdcmp_crop_<área>.png` (`python C:/Users/Usuario/Devel/tools/hd_compare.py`, que compara los pares `scan_<área>_sd/_hd.png`). Carga sin errores y sin costo de GPU apreciable (1,4–1,9 ms igual que sin pack). Se ven más nítidos los relieves de la ruina rosada (26,0), las piedras del pasillo con raíces (14,1), las marcas de la calle de la ciudad (5,0) y las paredes de metal azul (20,0); en el bosque (área 3) casi no cambia (texturas de baja frecuencia y niebla). **Defecto:** en texturas con ruido o tramado (el metal azul de 20,0) waifu2x convierte el ruido en manchas suaves con aspecto de acuarela; para esas páginas convendría el nivel de ruido 0 o un modelo que conserve el grano (por ejemplo los de `models\ncnn\`), elegido por página según su varianza local. La validación por volcado (`validate_terrain_dump.py`) sigue pendiente.
+
+### 9.2 Ruido y tramado: grano conservado por página (waifu2x + hqx con máscara local)
+
+Continuación de 9.1 (2026-10-02) a partir del defecto visto en la prueba en el juego: en las páginas con ruido o tramado waifu2x convierte el grano en manchas suaves con aspecto de acuarela (paredes de metal azul de 20,0, paredes de roca de 14), mientras que las páginas de formas limpias (relieves de 26, marcas de la calle de 5) se ven bien y no deben cambiar. Todo vive en `C:\Users\Usuario\Devel\tools\upscale\terrain\`: `page_noise.py` (medida y tratamiento), `noise_eval.py` (distribución y hojas de comparación) y el paso 3b de `build_all_terrain.py`. No se ejecutó el juego, no se instaló nada en `mods` y no se descargó nada: todos los candidatos son las herramientas y modelos de la sección 3.
+
+**Medida** (`page_noise.py`, sobre la página original 1x, solo texeles opacos):
+
+- Dos texeles vecinos son *distintos* si algún canal difiere en más de 12 (dos pasos de 5 bits; el moteado tenue, como las vetas del mármol, no cuenta).
+- Un texel es *activo* si al menos 1 de sus 4 vecinos es distinto, y es una *mota* si al menos 3 de los 4 son distintos y no es *lineal*: no forma una racha de más de 2 texeles parecidos en una dirección (horizontal, vertical o una de las diagonales) sin tenerla también en la perpendicular. Así no cuentan los bordes, las líneas de 1 texel, los contornos diagonales, los anillos ni los extremos de línea, y sí el ruido aleatorio y el tramado (el damero incluido, porque tiene rachas en las dos diagonales).
+- **Medida por página: proporción de motas = motas / texeles activos**, es decir, cuánto del detalle de alta frecuencia es grano y no bordes. La primera versión (fracción de texeles con 3 o 4 vecinos distintos, con umbral 6 y sin el criterio de líneas) confundía relieves, rejas y ventanas con ruido: daba 0,32 a los relieves de 26 (página `85c6c258`) y 0,41 al metal azul; con la proporción de motas quedan en 0,12 y 0,21–0,33.
+- **Máscara local** (solo en las páginas que se tratan): densidad de motas medida con umbral 6 (un paso de 5 bits), sumando los texeles con 3 o 4 vecinos distintos de bajo contraste (ninguna diferencia mayor que 56: las rayas cortas del metal cepillado de 20, que el criterio de líneas descarta), suavizada con una gaussiana de σ = 2 texeles normalizada por la cobertura opaca y llevada a 0..1 con un smoothstep entre 0,12 y 0,28.
+
+Distribución sobre las 1084 imágenes de página del build (`out\all\pages.csv`; histograma y muestras ordenadas con la máscara superpuesta en `out\noise_eval\page_noise_hist.png` y `sorted_by_ratio.png`): percentiles 5/25/50/75/95 de la proporción de motas = 0,033 / 0,074 / 0,136 / 0,218 / 0,515. Hay un grueso de páginas limpias (edificios, letreros, máquinas: menos de 0,15), una cola larga muy ruidosa (roca, tierra, pasto, agua: 0,3–0,6) y una franja dudosa entre 0,14 y 0,20 (pasto fino, estanterías, grava de la calle).
+
+**Candidatos** (`noise_eval.py compare`): 18 recortes de 64×64 texeles de 16 páginas, 11 en páginas que se tratan (20 metal y piso, 14 roca y bloques, 9 tierra, 11 cascada, 26 granito con tótem y casas) y 7 en páginas limpias que no deben cambiar (relieves y máquina de 26, calle, edificios y estantería de 5). Cada hoja `cmp_<recorte>.png` muestra original nearest x4 | actual | 41 candidatos; `short_<recorte>.png` es una selección de 9 y `zoom_<recorte>.png` un acercamiento 8x de 8 recortes. Métricas medias sobre los 11 recortes de páginas tratadas (`metrics.csv`): *fidelidad* = error medio de la reducción por caja contra el original (0–255); *centro* = error del centro de cada texel HD contra su color original (bajo = cada mota del grano sigue legible); *subtexel* = estructura inventada dentro de cada texel (alto = manchas o detalle nuevo); *limpias* = diferencia máxima con el resultado actual en los recortes de páginas limpias.
+
+| Candidato | Fidelidad | Centro | Subtexel | Limpias |
+|---|---:|---:|---:|---:|
+| actual: waifu2x cunet n0 | 2,70 | 6,04 | 9,85 | 0 |
+| waifu2x cunet n−1 (sin reducción de ruido) | 1,52 | 6,12 | 10,17 | 168 |
+| waifu2x cunet n−1 x2 + Lanczos | 1,74 | 5,22 | 10,13 | 153 |
+| waifu2x anime n−1 (photo: igual) | 1,86 | 5,82 | 10,74 | 207 |
+| Real-ESRGAN x4plus | 11,42 | 13,27 | 12,25 | 240 |
+| NMKD Siax / LSDIR Compact (ncnn) | 5,61 / 7,77 | 14,10 / 16,74 | 20,89 / 22,39 | 204 / 212 |
+| HFA2k (ncnn) | 11,69 | 10,23 | 6,39 | 185 |
+| PBRify SPANV4 / HDCube (`.pth`, CPU) | 9,26 / 9,92 | 9,30 / 14,47 | 11,57 / 19,43 | 214 / 254 |
+| xBRZ | 3,63 | 0,46 | 4,88 | 218 |
+| hqx | 4,02 | 2,01 | 3,84 | 207 |
+| nearest suavizado (gaussiana de 0,7 px HD) | 4,11 | 0,30 | 4,32 | 150 |
+| actual + alta frecuencia del original (nearest) | 11,94 | 16,24 | 8,16 | 136 |
+| waifu2x sobre base bilateral + grano del original | 3,15 | 5,11 | 8,81 | 116 |
+| 50 % actual + 50 % nearest suavizado | 2,86 | 2,92 | 6,67 | 75 |
+| filtro por página + máscara + nearest suavizado | 4,00 | 0,46 | 4,47 | 0 |
+| **elegido: filtro por página + máscara + hqx** | 4,00 | 2,09 | 4,05 | 0 |
+
+Lo que se ve en las hojas:
+
+- **waifu2x sin reducción de ruido (−1) no lo arregla**: la acuarela no la produce el reductor de ruido sino la reconstrucción (el modelo dibuja formas a partir del grano). Mejora la fidelidad por caja, pero el centro y la estructura subtexel quedan igual que con n0; photo y anime hacen lo mismo.
+- Los modelos extra de la sección 3 inventan material (Siax, LSDIR, HDCube, PBRify) o aplanan el grano (x4plus, HFA2k), con poca fidelidad.
+- xBRZ conserva los colores pero dibuja diagonales duras (aspecto posterizado); el nearest suavizado es lo más fiel pero se ve como píxeles agrandados; **hqx deja cada mota como un cuadrado suave y suaviza las líneas**: es el grano más legible sin perder las formas.
+- Los híbridos sobre waifu2x (sumarle la alta frecuencia del original, correr waifu2x sobre una base sin grano y devolverle el grano, mezclas al 50 %) dejan las manchas debajo o duplican el ruido.
+- Tratar páginas enteras no sirve: las páginas son atlas (letreros junto a grava, relieves dentro de granito, casas junto a arbustos). Por eso el tratamiento se mezcla por texel con la máscara, y el filtro por página garantiza que las páginas limpias no cambien.
+
+**Decisión:** si la proporción de motas de la página es ≥ 0,18, HD = (1 − m)·waifu2x + m·hqx, con m = la máscara local subida a 4x con interpolación bilineal (las ventanas vecinas siguen continuas); si es menor, waifu2x tal cual. Para el informe, una página tratada con máscara media ≥ 0,5 se llama *ruidosa* y el resto *mixta*. Justificación: en los paneles de 20,0 (el defecto visto en el juego) el grano queda como bloques de los colores originales en lugar de manchas, en la roca de 14 se lee el moteado y las raíces siguen siendo líneas, los relieves dentro del granito de 26 siguen legibles y las páginas limpias (los relieves de 26 en `85c6c258`, la calle de 5 en `972f7778`, edificios y máquinas) dan exactamente el resultado anterior. El nearest suavizado fue el segundo (más fiel, pero más "pixelado"); se elige con `GRAIN = "soft"` en `page_noise.py`. Resumen visual: `out\noise_eval\decision_sheet.png` (original | actual | elegido | máscara; en gris las páginas limpias, donde la máscara no se aplica).
+
+**Páginas animadas** (las cascadas de 9.1): cada cuadro usa la medida y la máscara de su página de la ROM, con 0 en los texeles que cambia algún cuadro (más uno de margen). Todos los cuadros reciben así el mismo tratamiento fuera de la tira y la tira animada queda con waifu2x, como antes.
+
+**Integración** (paso 3b de `build_all_terrain.py`): solo CPU (8 procesos) y determinista. Cada página tratada se guarda como `pages_4x\w2x-cunet_x4_n0_grain\<página>_<id de tratamiento>.png`, donde el id es un hash de los parámetros y de la máscara, y el manifiesto del directorio de DDS guarda `página:tratamiento`: cambiar un parámetro solo rehace las páginas y ventanas afectadas, y una segunda corrida no rehace nada. Cada página tratada pasa el mismo control que las salidas de la GPU (`upscale_ok`; si fallara se usaría la de waifu2x y se informaría). Nuevo en el paso 4: cada DDS recién convertido se decodifica y se compara con su recorte (error medio ≤ 8 sobre 255; BC7 da 1–2,5) y los que fallen se rehacen con texconv en CPU, porque la GPU es compartida con el juego en prueba. `out\all\pages.csv` lista cada página con su medida, clase y tratamiento; `summary.json` agrega el bloque `grain` y `dds_verify`. `--grain off` vuelve a los packs de 9.1. Los packs conservan ids, nombres de archivo y estructura (`mod.json`, `rt64.json`, caché de mips bajos y 19 811 DDS); solo cambian la descripción y la versión (0.2.0), así que `install_all.ps1` funciona igual.
+
+**Números (build completo del 2026-10-02):**
+
+| Clase | Páginas | Ventanas | Dibujos |
+|---|---:|---:|---:|
+| limpia (waifu2x sin cambios) | 692 | 13 314 | 231 488 |
+| mixta (tratada, máscara media < 0,5) | 90 | 1056 | 28 879 |
+| ruidosa (tratada, máscara media ≥ 0,5) | 302 | 5441 | 111 857 |
+
+- Tratadas 392 páginas (6497 ventanas, 33 %; 190 de los 222 cuadros animados), ninguna rechazada. Por área: todas las ventanas de 20 (496), casi todas las de 9 (999 de 1003), 17 (341 de 405), 14 (383 de 504), 10 (845 de 1037), 11 (827 de 1194) y 29 (1208 de 1982); 253 de 903 en 26, 60 de 901 en 5, 1 de 960 en 13 y ninguna en 4, 7, 15, 21, 23 y 25.
+- Tiempo: build completo con el tratamiento calculado desde cero 511 s (antes, con todo en caché, 436 s): tratamiento 24 s, recorte + 6497 DDS + verificación 32 s; el resto son el replay, las verificaciones C++ y los 31 packs. Una segunda corrida tarda 328 s y no recalcula ninguna página ni DDS (el paso 3b solo vuelve a medir las 1084 páginas, 10 s).
+- Tamaño: pack combinado 175,7 → 163,5 MB (−7 %, probablemente porque el BC7 de las zonas con hqx, más planas dentro de cada texel, se comprime mejor con zstd); los 30 packs por área suman 198,6 → 183,0 MB (área 20: 7,3 → 6,1; 14: 6,8 → 5,6; 26: 9,1 → 8,8; 4 y 5 sin cambio).
+- Verificaciones: 19 811/19 811 hashes idénticos con el hasher C++ de RT64 y 19 811/19 811 TMEM reconstruidas por su cargador (estados sin cambio: 18 341 exactas, 1415 con el defecto de un texel, 55 fuera del borde); 6497 DDS nuevos decodificados (peor error medio 2,49, ninguno rehecho); 0 páginas con el respaldo xBRZ. Las 13 314 ventanas de páginas limpias tienen DDS idénticos byte a byte (CRC) a los del pack de 9.1; de las 6497 de páginas tratadas cambian 5345 (el resto cae en zonas con máscara 0). Recalcular una página tratada da los mismos bytes, y dos packs armados con los mismos DDS tienen el mismo CRC en cada entrada (los `.rtz` solo difieren en las fechas que texture_packer pone a las entradas). Con `--grain off`, en un build parcial de 14, 20 y 26, 1879 de 1903 DDS son idénticos a los de 9.1; los 24 restantes son ventanas compartidas con el área 5, que en un build parcial se recortan de otra página (comportamiento previo de los subconjuntos). Copia del pack de 9.1 para comparar: `out\noise_eval\before\mm64_hd_terrain_all_w2x_before_9.2.rtz` (mismo mod id: instalar uno u otro).
+
+**Cómo volver a correrlo:**
+
+```
+cd C:\Users\Usuario\Devel\tools\upscale\terrain
+python noise_eval.py measure              # distribución de la medida (unos 20 s)
+python noise_eval.py compare              # hojas de comparación en out\noise_eval\ (GPU solo la primera vez: un lote chico por modelo)
+python build_all_terrain.py               # packs con el tratamiento (incremental)
+python build_all_terrain.py --grain off   # packs como en 9.1
+```
+
+Los parámetros están al principio de `page_noise.py` (`PAGE_RATIO`, `LO`/`HI`, `TAU_MASK`, `LOWC`, `GRAIN`); como el id de tratamiento los incluye, el siguiente build rehace solo lo afectado.
+
+**Prueba en el juego (2026-10-02):** pack instalado solo durante la prueba y quitado después (`mods.json`
+restaurado); capturas con `area_scan.ps1 -Areas @("20,0","14,1","26,0","5,0") -Full -Suffix "_hd2"`, comparadas con
+las de 9.1 (`_hd`) y sin pack (`_sd`) en `shots\hd2_crop_<área>.png`. El metal azul de 20,0 conserva el grano del
+original en lugar de las manchas de acuarela; las paredes de roca de 14,1 también; el piso de 14,1 queda con
+bloques de texel visibles (hqx respeta cada texel: más fiel al original, menos "liso"); la ruina de 26,0 y la calle de
+5,0 no cambian. Sin costo de GPU apreciable.
+
+**Pendiente:** la franja 0,14–0,18 queda sin tratar (por ejemplo la mitad de grava de la página de la calle de 5, `972f7778`, sigue con waifu2x para no tocar las marcas); las tiras animadas siguen con waifu2x; hqx es Python puro (unos 0,1 s por página de 128², suficiente para unas 400 páginas).
