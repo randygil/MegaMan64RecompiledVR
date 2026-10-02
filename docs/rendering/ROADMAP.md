@@ -46,10 +46,13 @@
 | G-buffer de normales (replay) | hecho | normales suaves, *sphere impostor* en follaje |
 | AO | hecho | GTAO a media resolución + blur bilateral |
 | Composición (sol, cielo, AO, interiores) | hecho | linterna en interiores; ajustar dungeons |
-| Cielo procedural raster | en curso (agente) | `LightingSky`, `procedural-sky.md` |
-| God rays, bloom, grading, CAS | en curso (agente) | `PostEffects`, `post-effects.md` |
-| Menú y presets | hecho | Enhanced Lighting On/Off (F3), Lighting Quality Low–Ultra |
-| Árboles | en curso | volumen + sombras de hojas + translucidez hechos; PT sin vaivén/ruido; faltan alpha-to-coverage y viento por vértice |
-| Texture pack HD | prototipo | pack de modelos (2577 texturas, waifu2x) sin probar en juego; ver `remake-research.md` |
+| Cielo procedural raster | hecho | `LightingSky`, `procedural-sky.md`; opción Sky del menú |
+| God rays, bloom, grading, CAS | hecho | `PostEffects`, `post-effects.md`; intensidad = opción Effects |
+| Menú y presets | hecho | Enhanced Lighting On/Off (F3), Lighting Quality Low–Ultra, Effects y Sky compartidos con el PT |
+| MSAA | hecho | composición por superficie (`SV_Coverage`), alpha to coverage en recortes |
+| D3D12 | hecho | bug de samplers inmutables de plume corregido; iluminación igual que en Vulkan (PT en D3D12 sin probar) |
+| Árboles | en curso | volumen + sombras de hojas + translucidez + bordes con AA hechos; PT sin vaivén/ruido; falta viento por vértice y árboles 3D |
+| Texture pack HD | prototipo probado | pack de modelos (waifu2x) validado en el juego (texturas de personajes más nítidas); falta el terreno por páginas |
 | Reemplazo de modelos (experimento) | investigado | hook en `func_800805F8`; árbol procedural de 618 triángulos |
-| Rendimiento | en curso | fusionar casters con alpha test, normales suaves O(n²) |
+| Rendimiento | en curso | *replays* fusionados hechos; quedan normales suaves O(n²) y casters con alpha test |
+| Dungeons | pendiente | no hay guardado dentro de una dungeon; los warps 14/26 se congelan sin Mega Man |

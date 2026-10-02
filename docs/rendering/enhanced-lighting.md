@@ -5,7 +5,9 @@ clásicas. Funciona en cualquier GPU (D3D12, Vulkan, Metal) y no depende del jue
 proyección, las luces que estima el `State` y la base del mundo que entrega el host.
 
 Menú: **Gráficos → Enhanced Lighting (Off/On, F3)** y **Lighting Quality (Low/Medium/High/Ultra)**
-(`graphics.json`: `el_option`, `el_quality_option`). El path tracing, si está activo, la reemplaza.
+(`graphics.json`: `el_option`, `el_quality_option`). El path tracing, si está activo, la reemplaza. Las opciones
+**Effects** (Off/Subtle/Full: intensidad del post) y **Sky** (Enhanced/Original: cielo procedural) son compartidas
+con el path tracer.
 
 ## Flujo de un frame
 
@@ -25,10 +27,21 @@ Por cada proyección perspectiva con depth buffer (una "escena de iluminación";
    2. **AO** (`LightingAOCS` + `LightingAOBlurCS`): GTAO a media resolución, blur separable con pesos de profundidad.
    3. **Composición** (`LightingComposePS`): calcula un factor de luz por píxel y multiplica el color target con
       blending `2 * src * dst` (el factor va dividido por dos y puede aclarar hasta x2). Respeta el alfa (cobertura RDP).
-   4. **Cielo procedural** (`LightingSky`, módulo aparte): reemplaza los píxeles de fondo que son cielo.
+      Con MSAA son dos pasadas: la superficie más cercana de cada píxel y luego la más lejana de los píxeles de borde,
+      cada una escribiendo solo sus muestras (`SV_Coverage`); la lejana toma la normal de un vecino que la muestre.
+   4. **Cielo procedural** (`LightingSky`, módulo aparte, `procedural-sky.md`): reemplaza los píxeles de fondo que son cielo.
 4. Translúcidos en su orden original.
-5. Marcador `PostScene`: **efectos de post** (`PostEffects`, módulo aparte: bloom, god rays, grading, CAS).
+5. Marcador `PostScene`: **efectos de post** (`PostEffects`, módulo aparte, `post-effects.md`: bloom, rayos de luz,
+   grading, CAS, viñeta, dither).
 6. HUD y 2D (sin tocar).
+
+Los *replays* (shadow map y G-buffer) dibujan juntos los draw calls consecutivos en el index buffer: un buffer por
+triángulo (24 bits bajos = render index, 8 altos = flags `LIGHTING_GBUFFER_*`, descriptor set 4) le dice al shader
+`MERGED` a qué draw call pertenece cada primitiva (`SV_PrimitiveID`). Así son unas pocas llamadas en vez de ~1000.
+
+**Recortes con antialiasing** (`RT64_LIGHT_CUTOUT_AA`, activo con la iluminación): con MSAA, el alpha test del RDP en
+`RasterPS` escribe `SV_Coverage` según el alfa (afinado con `fwidth`), como *alpha to coverage*: los bordes de las hojas
+dejan de verse dentados.
 
 ## Factor de luz (composición)
 
@@ -54,6 +67,8 @@ cerca de x1,1 y en sombra cerca de x0,6.
   Los opacos contiguos se dibujan juntos. Depth clip desactivado (casters entre el sol y el plano cercano se aplastan).
 - Filtro: 1 comparación bilineal (Low), 3x3 (Medium/High), 5x5 (Ultra). Bias por pendiente + normal offset.
 - El follaje mueve su búsqueda hacia el sol según el radio del árbol para no sombrearse con su propia tarjeta cruzada.
+- El sol sale de `GameConfiguration` (azimut 35°, elevación 32°, `RT64_RT_SUN_AZIMUTH/ELEVATION`). Con el sol bajo las
+  sombras de los edificios cubren calles enteras: es correcto, no un bug (ver la vista de depuración 7).
 
 ## Normales
 
@@ -81,8 +96,11 @@ cerca de x1,1 y en sombra cerca de x0,6.
 | `FOLIAGE_WRAP`, `FOLIAGE_TRANSLUCENCY`, `FOLIAGE_SHADOW`, `FOLIAGE_SHADOW_OFFSET` | 0,8, 0,6, 0,35, 1 | Follaje. |
 | `AO_RADIUS`, `AO_STRENGTH`, `AO_POWER`, `AO_SLICES`, `AO_DIRECT`, `AO_FOLIAGE` | 160, 0,9, 1,5, por preset, 0,35, 0,3 | Oclusión ambiental. |
 | `GBUFFER`, `SMOOTH_NORMALS`, `SMOOTH_NORMALS_MAX` | 1, 75, por preset | Buffer de normales y suavizado. |
+| `MERGE_DRAWS` | 1 | Dibuja juntos los draw calls consecutivos en los *replays*. |
+| `CUTOUT_AA` | 1 | Alpha to coverage de los recortes con MSAA. |
+| `BUMP` | 0 | Relieve desde el brillo de la textura (apagado: en MM64 las texturas del terreno tienen ventanas por quad y salía una cuadrícula). |
 | `BACKGROUND_DEPTH` | 0,99995 | Profundidad desde la que un píxel es fondo. |
-| `DEBUG` | 0 | Vistas: 1 factor, 2 normales, 3 sombra, 4 posición, 5 niebla, 6 AO. |
+| `DEBUG` | 0 | Vistas: 1 factor, 2 normales (espacio de la geometría), 3 sombra, 4 posición, 5 niebla, 6 AO, 7 distancia al oclusor del shadow map (rojo delante hasta 200 u, verde detrás, azul = normal guardada). |
 | `PRINT` (variable de entorno) | — | Imprime cada 120 frames las escenas (rect, sol, cámara, casters, texel). |
 
 `RT64_LIGHTING=1/0` fuerza la iluminación ignorando el menú (para pruebas).
@@ -92,6 +110,10 @@ cerca de x1,1 y en sombra cerca de x0,6.
 Base sin iluminación ≈ 0,88 ms/frame. Low +0,67 ms, Medium +1,26, High +1,42, Ultra +2,6. Desglose en Medium:
 shadow map ≈ 0,45, normales suaves ≈ 0,33, G-buffer ≈ 0,13, AO ≈ 0,08, resto (composición, posiciones de mundo,
 CPU) ≈ 0,3. El path tracer completo costaba ~9,8 ms.
+
+Con todo (iluminación Medium + cielo + post, *replays* fusionados): bosque ≈ 2,45 ms de frame y 1,6 ms de GPU;
+calle de la ciudad ≈ 3,0 ms y 1,95 ms de GPU; sin iluminación ≈ 1,57 / 0,93 ms. A 165 Hz no baja de 165 FPS
+(el path tracer daba ~81 FPS).
 
 ## Portabilidad
 
@@ -106,7 +128,8 @@ CPU) ≈ 0,3. El path tracer completo costaba ~9,8 ms.
 
 - Solo proyectan sombra los objetos que el juego dibuja (lo que queda fuera de cámara no existe para el HLE).
 - La niebla del juego se aproxima por píxel con los parámetros del primer draw call con niebla.
-- En bordes con MSAA el factor es por píxel (leve halo).
+- En bordes con MSAA se ilumina cada superficie por separado; quedan líneas muy tenues donde una superficie lejana no
+  tiene vecinos que la muestren (toma la normal de la profundidad).
 - Con el menú del recomp abierto aparecen líneas negras dentadas en los bordes del camino de tierra. **No es de la
   iluminación** (pasa igual con ella apagada): el fondo del menú deja ver el canal alfa del color target, que guarda la
   cobertura del RDP en los bordes de las texturas.

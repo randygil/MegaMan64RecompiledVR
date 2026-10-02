@@ -7,7 +7,9 @@ Documentos relacionados (misma carpeta):
 - `ROADMAP.md`: objetivo actual, prompt refinado y estado de cada línea de trabajo.
 - `techniques-research.md`: investigación de técnicas raster (sombras, AO, god rays, bloom, ReShade, licencias).
 - `remake-research.md`: reemplazo de texturas y modelos, herramientas de reescalado, experimentos de remake.
-- `enhanced-lighting.md`: diseño e implementación de la iluminación raster mejorada (cuando exista).
+- `enhanced-lighting.md`: diseño e implementación de la iluminación raster mejorada (sombras, AO, normales, MSAA).
+- `post-effects.md`: bloom, rayos de luz, CAS, grading, viñeta y dither de la escena iluminada.
+- `procedural-sky.md`: cielo procedural (atmósfera, sol, nubes 2.5D) que reemplaza el cielo 2D.
 
 ---
 
@@ -23,6 +25,8 @@ Documentos relacionados (misma carpeta):
 - Commits locales por funcionalidad, mensaje en inglés con el estilo existente. **Nunca** `Co-Authored-By: Claude`
   ni "Generated with Claude Code" (regla global del usuario). No hacer push salvo que se pida.
 - `src/res/bluenoise/LDR_64_64_64_RGB1.h` pesa 6 MB (ruido azul del path tracer); es normal.
+- `git status` del repo principal muestra `M lib/rt64` mientras el submódulo tenga commits nuevos sin registrar:
+  hacer commit en rt64 y luego en el principal con el puntero actualizado.
 
 ## 2. Entorno y compilación (Windows)
 
@@ -78,7 +82,8 @@ Scripts en `C:\Users\Usuario\Devel\tools` (PowerShell; llamarlos con `powershell
 | `keys.ps1 -Keys "0D,wait:1500,20:500,click:0.5,0.6"` | Envía teclas/clics a la ventana del juego (solo si es la ventana activa). |
 | `rt_menu.ps1` | Abre el menú de configuración (Esc) y lo captura. Con `keys.ps1 -Keys "click:0.31,0.09"` se pasa a la pestaña Graphics. |
 | `light_run.ps1 [-Tuning "N v;N v"] [-Warp a,e]` | Arranca con la iluminación raster (`RT64_LIGHTING=1`, PT apagado) y captura. |
-| `light_tune.ps1 -Sets @("label|N v;N v",...) [-Warp] [-Full]` | Una ejecución, varios sets de tuning en vivo; captura y tiempo de frame por set. |
+| `light_tune.ps1 -Sets @("label|N v;N v",...) [-Warp a,e] [-Full] [-SettleMs 1500]` | Una ejecución, varios sets de tuning en vivo; captura y tiempo de frame (CPU y GPU) por set. Con `RT64_LIGHT_PRINT=1` deja en `game_err.txt` las escenas de iluminación. |
+| `light_tune_api.ps1 -Api D3D12 -Sets @(...)` | Igual que `light_tune.ps1` con otra API gráfica; restaura `graphics.json` al terminar. |
 | `city_test.ps1`, `vr_run.ps1` | Pruebas del build VR de escritorio (simulador o modo debug). |
 
 Atajos dentro del juego: **F2** alterna path tracing, **F3** la iluminación raster mejorada; Esc abre el menú.
@@ -88,7 +93,11 @@ Los scripts que reciben arreglos (`-Sets @(...)`) se llaman con `& script.ps1 ..
 persisten entre llamadas.
 
 Comparar con números: `RT64_PRINT_FRAME_TIME=1` imprime en stderr el promedio de 120 frames
-(`Frame render time: X ms (RT on|off)`) — es tiempo de CPU+GPU del frame de render (el frame espera al GPU).
+(`Frame render time: X ms, GPU Y ms (RT on|off)`): X es el tiempo del frame de render (CPU que espera al GPU) e Y el
+tiempo de GPU medido con timestamps.
+
+Para combinar capturas en una cuadrícula (comparar sets) basta PIL:
+`python -c "from PIL import Image; ..."` pegando las imágenes de `shots\` en una sola (ver ejemplos en el historial).
 
 ## 4. Variables de entorno
 
@@ -113,7 +122,7 @@ RT64 (path tracer y generales):
 | `RT64_RT_PASSES=<máscara>` | Pases RT despachados (1 primario, 2 directa, 4 indirecta, 8 reflexión, 16 refracción). |
 | `RT64_RT_SCALE`, `RT64_RT_VIS` (6 directa, 4 difusa, 2 normales, 8 indirecta), `RT64_RT_DEBUG` (1 sin sombras, 2 NdotL, 4 normales de cara, 128 tablero de posiciones de mundo) | Depuración del path tracer. |
 | `RT64_RT_PRINT_STATS`, `RT64_RT_PRINT_LIGHTS`, `RT64_RT_NO_TAA`, `RT64_RT_FORCE_INDOOR` | Depuración. |
-| `RT64_RT_D3D12=1` | Permite RT en D3D12 (cuelga el GPU; no usar). |
+| `RT64_RT_D3D12=1` | Permite RT en D3D12. Colgaba el GPU; probablemente por el bug de plume de la sección 9 (ya corregido), pero **no se volvió a probar**. |
 | `PLUME_D3D12_DEBUG=1/2` | Capa de depuración de D3D12 (2 = validación en GPU). Un TDR con la capa activa dejó procesos imposibles de matar: evitar. |
 | `VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation` | Validación de Vulkan (`rt_run.ps1 -Validation`). |
 
@@ -121,6 +130,13 @@ Valores de tuning del path tracer (todos `RT64_RT_*`, ver `rt64_framebuffer_rend
 AO, VOLUMETRIC, SUN_DISC, BLOOM, SHARPEN, VIGNETTE, SATURATION, CONTRAST, BUMP, WATER_REFLECTION, EMISSIVE,
 SKY*, CLOUD*, FOLIAGE_WIND, FOLIAGE_DETAIL, SPRITE_VOLUME, SUN_AZIMUTH/ELEVATION/INTENSITY, INDOOR_*, OUTDOOR_AMBIENT,
 MODEL_/SCENERY_ SPECULAR/GLOSS, SMOOTH_NORMALS.
+
+El sol estimado (compartido por el path tracer, la iluminación raster y el cielo procedural) usa
+`GameConfiguration::sunAzimuthDegrees` = 35° y `sunElevationDegrees` = **32°** (antes 22°: las sombras largas
+tapaban media calle de la ciudad). Se sobreescriben con `RT64_RT_SUN_AZIMUTH` / `RT64_RT_SUN_ELEVATION`.
+
+Iluminación raster, post y cielo: `RT64_LIGHT_*` (tabla en `enhanced-lighting.md`), `RT64_POST_*`
+(`post-effects.md`), `RT64_SKY_*` (`procedural-sky.md`). Todos se editan en vivo con el archivo de tuning.
 
 ## 5. Datos de Mega Man 64 (específicos del juego)
 
@@ -185,8 +201,11 @@ Convenciones de proyección N64 en RT64: `RSPProcessCS` hace `ndc = tfPos.xyz / 
 
 Ver memoria `rt64-path-tracing` y el commit `aef5443` de `lib/rt64`. Archivos: `render/rt64_raytracing_{resources,shader_cache}`,
 `shaders/RaytracingLibrary.hlsl`, `Ray.hlsli`, `TemporalAACS.hlsl`, `BloomCS.hlsl`, `res/bluenoise`. Solo Vulkan
-(D3D12 cuelga). Costo: ~9,8 ms/frame a 960x576 en la RTX 4070 SUPER con todos los efectos (demasiado: el usuario lo apagó).
-Opciones de menú: Path Tracing On/Off (F2), Effects Off/Subtle/Full, Sky Enhanced/Original.
+(D3D12 colgaba, ver sección 9). Costo: ~9,8 ms/frame a 960x576 en la RTX 4070 SUPER con todos los efectos (demasiado:
+el usuario lo apagó). Opciones de menú: Path Tracing On/Off (F2), Effects Off/Subtle/Full, Sky Enhanced/Original.
+**Effects** y **Sky** también controlan la iluminación raster: la intensidad de los efectos escala el post (bloom,
+rayos, CAS, grading, viñeta) y Sky Original apaga el cielo procedural raster (`getEnhancementIntensity()`,
+`isProceduralSkyEnabled()` en `rt64_tuning.h`).
 
 ## 8. Portabilidad (otros decomps de N64 y ports de PS1)
 
@@ -222,3 +241,17 @@ Regla: **todo lo nuevo debe ser agnóstico al juego**.
 - En Bash, los heredocs largos con comillas a veces fallan ("unexpected EOF"): escribir el script con la herramienta
   Write y ejecutarlo (`python archivo.py`). Hay un helper de parches en el scratchpad de la sesión (`patchlib.py`).
 - Con `core.autocrlf=true` da igual si un script escribe LF o CRLF: git normaliza.
+- **plume D3D12, samplers inmutables**: `D3D12DescriptorSet` reservaba un hueco del heap de vistas por cada sampler
+  inmutable, pero la root signature los excluye de las tablas: todos los descriptores posteriores quedaban corridos
+  (G-buffer y AO rotos solo en D3D12). Corregido en `plume_d3d12.cpp` (commit de rt64 `6b8c2f1`). Es la causa más
+  probable de que el path tracer colgara el GPU en D3D12 (sin verificar). La iluminación raster ya se ve igual en
+  D3D12 y Vulkan.
+- No crear texturas ni framebuffers en mitad de la grabación de un command list que todavía los usa en el frame
+  (el `copyColor` de la iluminación los recreaba al cambiar de formato): crearlos en `finish()`, antes de grabar.
+- **"Una superficie sale oscura"**: antes de buscar un bug, mirar `RT64_LIGHT_DEBUG 3` (sombra) y `7` (distancia al
+  oclusor del shadow map: rojo = hay algo hacia el sol, azul = el píxel tiene normal guardada) y probar otra
+  elevación del sol. La calle de la ciudad (warp 5) estaba a la sombra de un edificio detrás de la cámara con el sol
+  a 22°: era correcto. Las normales de la vista 2 están en el espacio de la geometría (ojo PSX, +Y abajo): el suelo
+  sale morado `(0,-1,0)`, no verde.
+- `RT64_LIGHT_PRINT=1` imprime cada 120 frames las escenas de iluminación (rect, sol, cámara, casters, texel); si una
+  superficie no está en ninguna escena, o hay más escenas de las esperadas, ahí se ve.
