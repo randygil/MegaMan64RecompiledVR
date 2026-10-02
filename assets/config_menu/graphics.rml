@@ -367,7 +367,7 @@
                     </div>
 
                     <div class="config-option" data-event-mouseover="set_cur_config_index(8)">
-                        <label class="config-option__title">Path Tracing Effects</label>
+                        <label class="config-option__title">Effects</label>
                         <div class="config-option__list">
                             <input type="radio"
                                 data-event-blur="set_cur_config_index(-1)"
@@ -403,7 +403,7 @@
                     </div>
 
                     <div class="config-option" data-event-mouseover="set_cur_config_index(9)">
-                        <label class="config-option__title">Path Tracing Sky</label>
+                        <label class="config-option__title">Sky</label>
                         <div class="config-option__list">
                             <input type="radio"
                                 data-event-blur="set_cur_config_index(-1)"
@@ -470,7 +470,7 @@
                         Note: Requires a GPU with hardware ray tracing support. The <b>Vulkan</b> graphics API is used automatically when this option is enabled; restart the game after enabling it for the first time.
                     </p>
                     <p data-if="cur_config_index == 9">
-                        <b>Enhanced</b> replaces the sky of outdoor scenes with a physically based sky: an atmosphere lit by the sun and volumetric clouds that move with the wind. The parts of the game's background that aren't sky, like mountains or buildings, are kept. <b>Original</b> uses the game's sky.
+                        <b>Enhanced</b> replaces the sky of outdoor scenes with a physically based sky: an atmosphere lit by the sun and clouds that move with the wind. The parts of the game's background that aren't sky, like mountains or buildings, are kept. <b>Original</b> uses the game's sky. Used by both the enhanced lighting and path tracing.
                     </p>
                     <p data-if="cur_config_index == 10">
                         Adds sun shadows, ambient occlusion, light from the sky and shading that follows the shape of every surface to the game, with classic real time techniques that work on any GPU and cost far less than path tracing. Trees and bushes are lit like round volumes and cast leaf shaped shadows. You can also use <b>F3</b> to toggle it.
@@ -482,7 +482,7 @@
                         Cost of the enhanced lighting. <b>Low</b> is meant for integrated GPUs and handhelds: smaller shadow maps and no ambient occlusion. <b>Ultra</b> uses the sharpest shadows and the best ambient occlusion.
                     </p>
                     <p data-if="cur_config_index == 8">
-                        Strength of the extra effects added on top of path tracing: ambient occlusion, light scattering in the air, the sun in the sky, bloom, sharpening, color grading, vignette and texture relief. <b>Off</b> keeps only the path traced lighting and shadows.
+                        Strength of the effects added on top of the enhanced lighting or path tracing: bloom, light shafts from the sun, sharpening, color grading and vignette (path tracing also adds light scattering in the air, the sun in the sky and texture relief). <b>Off</b> keeps only the lighting and shadows.
                     </p>
                 </div>
             </div>
