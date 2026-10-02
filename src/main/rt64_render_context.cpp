@@ -421,6 +421,30 @@ static void update_world_view_rotation(RT64::Application* app, const uint8_t* rd
     }
 
     app->setWorldViewTranslation(valid ? translation : nullptr);
+
+    // Mega Man's position (s16 world units at +0x14 of his actor), moved into the space of the geometry with the same
+    // view matrix, so the light carried in interiors floats above him.
+    constexpr uint32_t PlayerActorAddress = 0x802049B0;
+    if (valid) {
+        const float world[3] = {
+            float(read_s16(PlayerActorAddress + 0x14)),
+            float(read_s16(PlayerActorAddress + 0x16)),
+            float(read_s16(PlayerActorAddress + 0x18))
+        };
+
+        float focus[3];
+        for (uint32_t i = 0; i < 3; i++) {
+            focus[i] = translation[i];
+            for (uint32_t j = 0; j < 3; j++) {
+                focus[i] += (read_s16(ViewMatrixAddress + (i * 3 + j) * 2) / 4096.0f) * axis_signs[i] * world[j];
+            }
+        }
+
+        app->setFocusPosition(focus);
+    }
+    else {
+        app->setFocusPosition(nullptr);
+    }
     if (getenv("RT64_RT_PRINT_VIEW") != nullptr) {
         static uint32_t print_counter = 0;
         if ((print_counter++ % 60) == 0) {
