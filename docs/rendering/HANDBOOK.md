@@ -282,6 +282,17 @@ Regla: **todo lo nuevo debe ser agnóstico al juego**.
   linterna solo en suelos y un AO más suave (radio 120, fuerza 0,8). Comprobar siempre con `DEBUG 6` y `8`.
 - Un "pixel shader caro" con MSAA casi siempre es por leer el depth buffer multisample: medir con
   `RT64_PRINT_FRAME_TIME=2` antes de optimizar a ciegas.
+- **Barreras** (hallazgos de una revisión de código):
+  - Los buffers subidos con `shaderUploader` (render indices, frame params, tablas nuevas) solo pasan a lectura en
+    `commandListAfterBarriers`, al **final** de `recordSetup`: un compute del setup que los lea necesita su propia
+    barrera antes del dispatch.
+  - En D3D12, `SHADER_READ` con etapa `GRAPHICS` es `PIXEL_SHADER_RESOURCE`: si luego lo lee un compute, la barrera
+    debe ser `GRAPHICS_AND_COMPUTE` (`ALL_SHADER_RESOURCE`). En Vulkan la etapa de destino también tiene que incluir
+    compute. plume emite la barrera aunque no cambie el layout (Vulkan), así que repetirla con otra etapa es válido.
+  - Un buffer persistente que se lee en frames siguientes (análisis del cielo) puede no haberse escrito nunca
+    (VR, interiores, primer frame): marcar qué entradas son válidas y no leer las demás.
+  - `State` tiene su propio `FramebufferRenderer` que graba en el hilo del juego: el estado global de herramientas como
+    `gpuMarker` debe ser `thread_local`.
 - `mm64_build.bat` usa 12 procesos (`MM64_BUILD_JOBS`); con 24 y WSL abierto (9 GB) clang-cl se quedó sin memoria.
 - Probado y descartado: un pre-pase que copiaba la profundidad (la muestra más lejana) a un depth buffer de una
   muestra para que el *replay* del G-buffer tuviera early-Z. En escritorio no ganó nada (el G-buffer no está limitado
