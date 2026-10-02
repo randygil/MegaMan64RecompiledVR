@@ -368,6 +368,27 @@ void reset_graphics_options() {
 }
 
 static std::atomic<bool> path_tracing_enabled = false;
+static std::atomic<bool> enhanced_lighting_enabled = true;
+static std::atomic<int> lighting_quality = 1;
+static const char* lighting_quality_names[] = { "Low", "Medium", "High", "Ultra" };
+
+bool zelda64::get_enhanced_lighting_enabled() {
+    return enhanced_lighting_enabled;
+}
+
+void zelda64::set_enhanced_lighting_enabled(bool enabled) {
+    enhanced_lighting_enabled = enabled;
+    zelda64::renderer::set_enhanced_lighting_enabled(enabled);
+}
+
+int zelda64::get_lighting_quality() {
+    return lighting_quality;
+}
+
+void zelda64::set_lighting_quality(int quality) {
+    lighting_quality = std::clamp(quality, 0, 3);
+    zelda64::renderer::set_lighting_quality(lighting_quality);
+}
 static std::atomic<int> path_tracing_effects = 2;
 static const char* path_tracing_effects_names[] = { "Off", "Subtle", "Full" };
 
@@ -406,6 +427,8 @@ bool save_graphics_config(const std::filesystem::path& path) {
     config_json["pt_option"] = path_tracing_enabled ? "On" : "Off";
     config_json["pt_effects_option"] = path_tracing_effects_names[path_tracing_effects];
     config_json["pt_sky_option"] = path_tracing_sky ? "Enhanced" : "Original";
+    config_json["el_option"] = enhanced_lighting_enabled ? "On" : "Off";
+    config_json["el_quality_option"] = lighting_quality_names[lighting_quality];
     return save_json_with_backups(path, config_json);
 }
 
@@ -427,6 +450,13 @@ bool load_graphics_config(const std::filesystem::path& path) {
     }
 
     zelda64::set_path_tracing_sky(config_json.value("pt_sky_option", std::string("Enhanced")) != "Original");
+    zelda64::set_enhanced_lighting_enabled(config_json.value("el_option", std::string("On")) == "On");
+    const std::string quality = config_json.value("el_quality_option", std::string("Medium"));
+    for (int i = 0; i < 4; i++) {
+        if (quality == lighting_quality_names[i]) {
+            zelda64::set_lighting_quality(i);
+        }
+    }
     return true;
 }
 

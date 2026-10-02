@@ -239,7 +239,7 @@
                                 data-checked="hr_option"
                                 value="Original"
                                 id="hr_original"
-                                style="nav-up: #msaa_none; nav-down: #apply_button"
+                                style="nav-up: #msaa_none; nav-down: #el_off"
                             />
                             <label class="config-option__tab-label" for="hr_original">Original</label>
                             <input type="radio"
@@ -249,7 +249,7 @@
                                 data-checked="hr_option"
                                 value="Clamp16x9"
                                 id="hr_16_9"
-                                style="nav-up: #msaa_2x; nav-down: #apply_button"
+                                style="nav-up: #msaa_2x; nav-down: #el_on"
                                 data-style-nav-up="msaa2x_supported ? '#msaa_2x' : '#msaa_none'"
                             />
                             <label class="config-option__tab-label" for="hr_16_9">16:9</label>
@@ -260,10 +260,82 @@
                                 data-checked="hr_option"
                                 value="Full"
                                 id="hr_full"
-                                style="nav-up: #msaa_4x; nav-down: #apply_button"
+                                style="nav-up: #msaa_4x; nav-down: #el_on"
                                 data-style-nav-up="msaa4x_supported ? '#msaa_4x' : (msaa2x_supported ? '#msaa_2x' : '#msaa_none')"
                             />
                             <label class="config-option__tab-label" for="hr_full">Expand</label>
+                        </div>
+                    </div>
+
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(10)">
+                        <label class="config-option__title">Enhanced Lighting</label>
+                        <div class="config-option__list">
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(10)"
+                                name="el-option"
+                                data-checked="el_option"
+                                value="Off"
+                                id="el_off"
+                                style="nav-up: #hr_original; nav-down: #elq_low"
+                            />
+                            <label class="config-option__tab-label" for="el_off">Off</label>
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(10)"
+                                name="el-option"
+                                data-checked="el_option"
+                                value="On"
+                                id="el_on"
+                                style="nav-up: #hr_16_9; nav-down: #elq_medium"
+                            />
+                            <label class="config-option__tab-label" for="el_on">On</label>
+                        </div>
+                    </div>
+
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(11)">
+                        <label class="config-option__title">Lighting Quality</label>
+                        <div class="config-option__list">
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(11)"
+                                name="elq-option"
+                                data-checked="el_quality_option"
+                                value="Low"
+                                id="elq_low"
+                                style="nav-up: #el_off; nav-down: #pt_off"
+                            />
+                            <label class="config-option__tab-label" for="elq_low">Low</label>
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(11)"
+                                name="elq-option"
+                                data-checked="el_quality_option"
+                                value="Medium"
+                                id="elq_medium"
+                                style="nav-up: #el_on; nav-down: #pt_on"
+                            />
+                            <label class="config-option__tab-label" for="elq_medium">Medium</label>
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(11)"
+                                name="elq-option"
+                                data-checked="el_quality_option"
+                                value="High"
+                                id="elq_high"
+                                style="nav-up: #el_on; nav-down: #pt_on"
+                            />
+                            <label class="config-option__tab-label" for="elq_high">High</label>
+                            <input type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(11)"
+                                name="elq-option"
+                                data-checked="el_quality_option"
+                                value="Ultra"
+                                id="elq_ultra"
+                                style="nav-up: #el_on; nav-down: #pt_on"
+                            />
+                            <label class="config-option__tab-label" for="elq_ultra">Ultra</label>
                         </div>
                     </div>
 
@@ -277,7 +349,7 @@
                                 data-checked="pt_option"
                                 value="Off"
                                 id="pt_off"
-                                style="nav-up: #hr_original; nav-down: #pte_off"
+                                style="nav-up: #elq_low; nav-down: #pte_off"
                             />
                             <label class="config-option__tab-label" for="pt_off">Off</label>
                             <input type="radio"
@@ -287,7 +359,7 @@
                                 data-checked="pt_option"
                                 value="On"
                                 id="pt_on"
-                                style="nav-up: #hr_16_9; nav-down: #pte_subtle"
+                                style="nav-up: #elq_medium; nav-down: #pte_subtle"
                             />
                             <label class="config-option__tab-label" for="pt_on">On</label>
                             <div class="config-option__details" data-if="!pt_supported">Requires a GPU with ray tracing and the Vulkan API (restart after enabling)</div>
@@ -399,6 +471,15 @@
                     </p>
                     <p data-if="cur_config_index == 9">
                         <b>Enhanced</b> replaces the sky of outdoor scenes with a physically based sky: an atmosphere lit by the sun and volumetric clouds that move with the wind. The parts of the game's background that aren't sky, like mountains or buildings, are kept. <b>Original</b> uses the game's sky.
+                    </p>
+                    <p data-if="cur_config_index == 10">
+                        Adds sun shadows, ambient occlusion, light from the sky and shading that follows the shape of every surface to the game, with classic real time techniques that work on any GPU and cost far less than path tracing. Trees and bushes are lit like round volumes and cast leaf shaped shadows. You can also use <b>F3</b> to toggle it.
+                        <br />
+                        <br />
+                        When <b>Path Tracing</b> is on it replaces this lighting.
+                    </p>
+                    <p data-if="cur_config_index == 11">
+                        Cost of the enhanced lighting. <b>Low</b> is meant for integrated GPUs and handhelds: smaller shadow maps and no ambient occlusion. <b>Ultra</b> uses the sharpest shadows and the best ambient occlusion.
                     </p>
                     <p data-if="cur_config_index == 8">
                         Strength of the extra effects added on top of path tracing: ambient occlusion, light scattering in the air, the sun in the sky, bloom, sharpening, color grading, vignette and texture relief. <b>Off</b> keeps only the path traced lighting and shadows.

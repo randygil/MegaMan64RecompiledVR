@@ -24,7 +24,7 @@ namespace Rml {
 }
 
 namespace recompui {
-    // Updates the graphics menu if the path tracing option was changed outside of it (e.g. with F2).
+    // Updates the graphics menu if the path tracing or the enhanced lighting were toggled outside of it (F2, F3).
     void refresh_path_tracing_option();
 
     class UiEventListenerInstancer;

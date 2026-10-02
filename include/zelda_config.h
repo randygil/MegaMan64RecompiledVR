@@ -24,6 +24,12 @@ namespace zelda64 {
     bool get_debug_mode_enabled();
     bool get_path_tracing_enabled();
     void set_path_tracing_enabled(bool enabled);
+    // Shadows and lighting with classic raster techniques (RT64's enhanced lighting).
+    bool get_enhanced_lighting_enabled();
+    void set_enhanced_lighting_enabled(bool enabled);
+    // Quality of the enhanced lighting: 0 low, 1 medium, 2 high, 3 ultra.
+    int get_lighting_quality();
+    void set_lighting_quality(int quality);
     // Strength of the path tracer's visual effects: 0 off, 1 subtle, 2 full.
     int get_path_tracing_effects();
     void set_path_tracing_effects(int level);

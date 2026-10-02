@@ -50,6 +50,8 @@ namespace zelda64 {
 
         // Switches between the path traced renderer and the regular one when the GPU supports it.
         void set_path_tracing_enabled(bool enabled);
+        void set_enhanced_lighting_enabled(bool enabled);
+        void set_lighting_quality(int quality);
         bool is_path_tracing_supported();
         // 0 none, 1 subtle, 2 full.
         void set_path_tracing_effects(int level);

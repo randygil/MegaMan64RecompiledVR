@@ -7,6 +7,7 @@
 
 #define HLSL_CPU
 #include "hle/rt64_application.h"
+#include "render/rt64_lighting.h"
 #include "rt64_render_hooks.h"
 #include "overloaded.h"
 
@@ -472,6 +473,14 @@ void zelda64::renderer::set_path_tracing_enabled(bool enabled) {
 void zelda64::renderer::set_path_tracing_effects(int level) {
     static const float intensities[] = { 0.0f, 0.5f, 1.0f };
     RT64::setEnhancementIntensity(intensities[std::clamp(level, 0, 2)]);
+}
+
+void zelda64::renderer::set_enhanced_lighting_enabled(bool enabled) {
+    RT64::setRasterLightingEnabled(enabled);
+}
+
+void zelda64::renderer::set_lighting_quality(int quality) {
+    RT64::setRasterLightingQuality(quality);
 }
 
 void zelda64::renderer::set_path_tracing_sky(bool enhanced) {

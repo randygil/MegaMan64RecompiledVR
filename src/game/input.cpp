@@ -137,6 +137,10 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
                 zelda64::set_path_tracing_enabled(!zelda64::get_path_tracing_enabled());
                 zelda64::save_config();
             }
+            if (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F3) {
+                zelda64::set_enhanced_lighting_enabled(!zelda64::get_enhanced_lighting_enabled());
+                zelda64::save_config();
+            }
             if (scanning_device != recomp::InputDevice::COUNT) {
                 if (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_ESCAPE) {
                     recomp::cancel_scanning_input();

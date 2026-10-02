@@ -808,6 +808,28 @@ public:
                 zelda64::save_config();
             });
         constructor.BindFunc("pt_supported", [](Rml::Variant& out) { out = zelda64::renderer::is_path_tracing_supported(); });
+        constructor.BindFunc("el_option",
+            [](Rml::Variant& out) { out = zelda64::get_enhanced_lighting_enabled() ? "On" : "Off"; },
+            [](const Rml::Variant& in) {
+                zelda64::set_enhanced_lighting_enabled(in.Get<std::string>() == "On");
+                zelda64::save_config();
+            });
+        constructor.BindFunc("el_quality_option",
+            [](Rml::Variant& out) {
+                static const char* names[] = { "Low", "Medium", "High", "Ultra" };
+                out = names[zelda64::get_lighting_quality()];
+            },
+            [](const Rml::Variant& in) {
+                static const char* names[] = { "Low", "Medium", "High", "Ultra" };
+                const std::string value = in.Get<std::string>();
+                for (int i = 0; i < 4; i++) {
+                    if (value == names[i]) {
+                        zelda64::set_lighting_quality(i);
+                    }
+                }
+
+                zelda64::save_config();
+            });
         constructor.BindFunc("pt_sky_option",
             [](Rml::Variant& out) { out = zelda64::get_path_tracing_sky() ? "Enhanced" : "Original"; },
             [](const Rml::Variant& in) {
@@ -1168,6 +1190,13 @@ void recompui::refresh_path_tracing_option() {
         graphics_model_handle.DirtyVariable("pt_option");
         graphics_model_handle.DirtyVariable("pt_supported");
         last_value = value;
+    }
+
+    static bool last_lighting_value = true;
+    const bool lighting_value = zelda64::get_enhanced_lighting_enabled();
+    if ((lighting_value != last_lighting_value) && graphics_model_handle) {
+        graphics_model_handle.DirtyVariable("el_option");
+        last_lighting_value = lighting_value;
     }
 }
 
