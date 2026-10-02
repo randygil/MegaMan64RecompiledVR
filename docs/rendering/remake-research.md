@@ -480,7 +480,7 @@ Escala usada: esfuerzo para un agente de código con este repo; riesgo = probabi
   los quads de los demás). Las DL de esas tarjetas viven en el archivo de terreno cargado; su puntero queda en
   `0x800BD9A0` (y en `0x801AF434`) y el de los vértices (tipo `0x12`, segmento 5) en `0x800BD9A4` (`0x801AF430`), lo
   que escribe `func_80035CA0` en `0x800361CC`/`0x800361A0`. Scripts: `tree_survey.py` y `tree_detect.py` en
-  de la sesión).
+  `C:\Users\Usuario\Devel\tools\upscale\proto\`.
 
 ### E4. Cielo en HD
 
