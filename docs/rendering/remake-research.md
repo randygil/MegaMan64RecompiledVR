@@ -481,6 +481,92 @@ Escala usada: esfuerzo para un agente de código con este repo; riesgo = probabi
   `0x800BD9A0` (y en `0x801AF434`) y el de los vértices (tipo `0x12`, segmento 5) en `0x800BD9A4` (`0x801AF430`), lo
   que escribe `func_80035CA0` en `0x800361CC`/`0x800361A0`. Scripts: `tree_survey.py` y `tree_detect.py` en
   `C:\Users\Usuario\Devel\tools\upscale\proto\`.
+- **Colocación de los registros, decodificada (2026-10-02)** con `tile_layout.py` (solo lee la ROM). **Corrige el
+  hallazgo anterior**: cada celda dibuja un solo registro y cada registro de árbol trae el árbol entero más su suelo;
+  no hay registros apilados en la misma posición. El detector anterior perdía las tarjetas diagonales y las de una
+  cara (material por defecto del grupo: con el flag `0x4000` el segmento 4 es `0x800BDA80`, tex‑edge de una cara).
+  - Archivos del área (`func_80035CA0`): tipo `0x02` → copiado a `0x801B5080`: instancias de 12 bytes
+    `{s16 x, y, z, variante; u32 desplazamiento}` (la 0 es vacía; al cargar se les suma `[0x802055A0]`; hasta `0x800`).
+    `D_801B5088` apunta al campo puntero de la entrada 0, así que el `Tile` de `tag_terrain.h` está desplazado 8 bytes
+    (`Tile.v` es la posición de la entrada siguiente; el parche de las nubes de ovl25 funciona porque lo usa así).
+    Tipo `0x03` → copiado a `0x80210CB0`: `u32 n` + n ventanas `{u8 x0, z0, ancho, alto; u32 puntero}` (puntero −
+    `0x80164000` = rejilla de `u16` dentro del mismo archivo). Tipo `0x04` → `[0x802055A0]`: 48 bytes por registro
+    (colisión); **registro = desplazamiento / 48**. Tipo `0x05` → `[0x80204000]` (tabla de celdas especiales) y tipo
+    `0x0F` → `[0x800CEA24]` (texturas 16×16 CI4 de los tiles planos). El `0x12` siempre se carga antes que el `0x11`.
+  - El *init* del overlay del área (área 3 = ovl7, `0x802251B4`) toma la ventana número `[0x801BC439]` (la entrada):
+    rejilla → `0x801ACA40`, ancho → `0x802049AE`, alto → `0x801D8C7A`, x0 → `0x80206B40`, z0 → `0x801BC65A` y
+    `0x80210B5C` = `0x801B5080`. El área 3 tiene 9 ventanas: E0 (40×37), E1 (40×36) y E2 (52×28) son tres tramos del
+    bosque (las filas 1–11 de E2 repiten las 24–34 de E1: zona de transición) y E3–E8 son interiores pequeños junto al
+    origen.
+  - Dibujo (`func_8003912C`), por celda visible `v = rejilla[fila][col]`: `0` = vacía; bit 15 apagado = instancia `v`
+    (posición absoluta de la instancia; rotación = `u16` del registro en `+0x26` & 3; slot 3 si la variante es 0 y 0
+    si no, porque el LOD está apagado en `us.rev1.toml`); bit 15 encendido = centro de la celda
+    (`(col + x0) × 512 − 0x7F00`, igual en z), altura `((v >> 8) & 0x1F) × 128`, rotación `v & 3` y conjunto
+    `(v >> 2) & 0x1F`: con el bit 7 apagado es un tile plano de 2×2 texturas 16×16 (`func_800887B4` cerca,
+    `func_80088DD0` lejos; los conjuntos salen de datos del overlay copiados a `0x802046B8`) y con el bit 7 encendido,
+    un registro de la tabla `0x05`. Rotación = `Ry(r × 90°)` (`func_800319B4`: `x' = c·x + s·z`, `z' = −s·x + c·z`).
+    Los registros con `flags[0] & 0xC000` ocupan 2 o 4 celdas y `func_80038550` marca las vecinas en el bitmap
+    `0x8017AA20` para no dibujarlos dos veces. Tag `TERRAIN(col, fila)` por celda; buffer de 0x48 = `Mtx` + posición
+    en `+0x40` + `+0x46` (registro `& 0x1FF`, modo en los bits 9–11, slot en los 12–14).
+  - Bosque del área 3 (todas las instancias con rotación 0 y variante 0): **star3** (registros 39–40, 184
+    colocados): 3 tarjetas de dos caras de 384–417 × 640 cruzadas en el centro, textura s176–223 t160–254 de la página
+    `(0x2C0, 0x100)` con la CLUT `(0x80, 0x1F3)`; **T** (41–60, 151 colocados): tarjeta de una cara de 384 + media
+    tarjeta de dos caras de 192, tronco en el cruce (desplazado hasta 192 hacia el borde de la celda), s128–175 o
+    s176–223; **paredes de bosque** (23–38, 162 tarjetas): una cara, 512 o 724 de largo, con una hilera de árboles
+    pintada (s128–254 t0–95, CLUT `(0x80, 0x1F2)`), no son árboles sueltos; **setos** (110–118): tarjetas de dos caras
+    de 64–144 de alto. Cada tarjeta son dos quads (y −640..−320 y −320..0), cada uno con su ventana de 48×47 texeles;
+    el tronco está en la ventana de abajo (unos 8×14 texeles centrados). Los mismos tipos aparecen en las áreas 8, 10,
+    11, 16, 17, 18, 22, 24, 27 y 30.
+  - Verificación: en `map.png` el camino de tierra recto de E2 (tiles planos del conjunto 9, x ≈ 6400,
+    z ≈ 16400–19500) cruza el suelo de bosque con árboles a ambos lados, las paredes miran hacia adentro en los bordes
+    y las laderas forman crestas continuas.
+  - Uso: `python tile_layout.py <área> [--entrance N] [--story S] [--px 32] [--labels]` en
+    `C:\Users\Usuario\Devel\tools\upscale\proto\`. Escribe en `layout_out\areaNN\`: `layout.txt` (archivos y
+    direcciones, ventanas, catálogo de registros, detalle de cada registro de árbol con su entrada de grupo, sus DL y el
+    `TRI2` de cada quad, y la rejilla con el registro de cada celda), `trees.csv` (una fila por árbol colocado),
+    `map.png` (vista cenital texturizada) y `cards.png` (texturas de las tarjetas).
+- **Plan del parche para (A3)** (C en `patches/`, compilado con zig; todavía sin implementar ni probar):
+  1. **Gancho**: `[[patches.hook]]` en `func_80035CA0_110A0` con `before_vram = 0x800361D4` (solo la rama del tipo
+     `0x11`; `$v0` = archivo de terreno y los vértices ya están cargados) que llame a
+     `tree3d_on_terrain_loaded(terrain)`, guardando y restaurando `ctx` como los demás ganchos. Cada carga de área
+     vuelve a parchear (el archivo es una copia nueva en el heap) y no hay costo por cuadro.
+  2. **Detección** (la misma regla que `tile_layout.py`): recorrer los registros (el arreglo termina en el primer
+     arreglo de grupos o DL, ignorando los campos de los grupos con `0x8000`) y, en cada grupo de sus 6 slots, buscar
+     `TRI2` con 4 vértices sobre 2 puntos xz, alto ≥ 200, material tex‑edge (después de `G_DL 0x03000000`, o el
+     material por defecto con el flag `0x4000`) y ancho < 448. Si forman star3, T o cruz de 2 con alto ≥ 400, es un
+     árbol: centro = cruce, base = y máxima, alto, radio y los bloques de textura de 7 comandos (`E7`, `F5` tile 7,
+     `E6`, `F4`, `E7`, `F5` tile 0, `F2`) de las dos mitades de la tarjeta completa. Las paredes y las tarjetas sueltas
+     no se tocan (en las áreas 2, 4, 9 y 20 hay tarjetas sueltas que no son árboles).
+  3. **Emisión**, una vez por registro de árbol, en un pool fijo `0x80600000`–`0x8067FFFF` (memoria libre del
+     Expansion Pak, 4.4; reservarlo en esa tabla y reiniciarlo en cada carga): DL del árbol = `G_DL 0x03000000`
+     (hojas, tex‑edge a dos caras) + bloque de la ventana de arriba + `G_VTX` (dirección K0) y triángulos de la copa +
+     bloque de la ventana de abajo + copa baja + `G_DL 0x02000000` (tronco, opaco a dos caras, para que el detector de
+     follaje no lo mueva) + tronco con UV en la tira del tronco + `G_DL 0x04000000` + `G_ENDDL`. UV = texel × 64
+     (`gSPTexture 0x8000`), siempre dentro de la ventana cargada (clamp). La página y la TLUT las pone `func_8007E8D4`
+     por grupo, así que basta copiar los bloques y los hashes del pack HD no cambian. Mallas: variantes de `tree_gen.py`
+     precalculadas en espacio unitario y escaladas al alto y radio de cada registro; unos 300 triángulos y 5 KB por
+     registro (área 3: 21 registros, ~100 KB).
+  4. **Ocultar las tarjetas y enganchar el árbol**: en los registros de árbol del área 3 las DL del grupo 0 solo
+     tienen quads de tarjeta, así que basta escribir en la entrada del grupo `dl1 = 0` y `dl2 = envoltorio − base del
+     archivo` (resta de 32 bits), con envoltorio = `{G_DL árbol, G_ENDDL}` (más un `G_DL` a la `dl2` original si tenía
+     otra geometría; en una DL mixta, cambiar solo los `TRI2` de tarjeta por `E7000000 00000000`). **Nunca `G_NOOP`
+     ni opcodes nuevos dentro de `dl1`/`dl2`/`dl4`**: en los modos 2–4, `func_8007E8D4` recorre esas DL en la CPU
+     (`func_8007D798`, `func_8007DA78`, `func_8007E024`), que solo entienden `01 06 D9 DE DF E2 E7` y bloques `F5` de
+     0x30 bytes y con cualquier otro opcode quedan en un bucle infinito (no avanzan el puntero); además cuentan quads en
+     `0x8017C1F8`/`0x8017C1FC` y marcan bits en `0x8017C200` (0x70 bytes) y `0x8017C270` sin límite, que una malla
+     grande desbordaría. Como copian los `G_DL` tal cual sin seguirlos, la malla del árbol queda fuera de su alcance.
+  5. **VR e interpolación**: la DL del árbol se ejecuta dentro de la tarea de la celda, después de su `G_MTX` y con el
+     mismo `gEXMatrixGroup TERRAIN(col, fila)`, así que RT64 la interpola y la repite en cada ojo igual que a las
+     tarjetas; los vértices son estáticos (nada cambia entre ojos ni entre cuadros). Si se quiere viento, que sea en el
+     shader.
+  6. **Fase 2 (variedad y LOD)**: un gancho en `func_8007E8D4` antes de `0x8007EF70` (con `s1`/`s2` ya calculados)
+     que, si el grupo es de árbol, cambie `s2` por una variante elegida con un hash de la posición de la instancia
+     (`buffer +0x40`/`+0x44`) y por una versión simple según la profundidad.
+  - **Riesgos**: el fundido cerca de la cámara (modos 3/4) solo actúa sobre `dl1`, así que el árbol 3D en `dl2` se
+    dibuja opaco aunque tape a Mega Man; las copas de los árboles T, con el tronco hasta a 64 del borde, invaden la
+    celda vecina o la pared pintada (desplazar el centro hacia adentro o aplanar la copa trasera); la colisión (archivo
+    `0x04`) sigue siendo la original; el culling por centro de celda puede hacer saltar copas más anchas que 208; costo
+    en Quest (unos 100 árboles visibles × 300 triángulos); y los 4 MB libres no están reservados formalmente.
 
 ### E4. Cielo en HD
 
