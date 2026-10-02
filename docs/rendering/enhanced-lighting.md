@@ -156,7 +156,19 @@ es leer el depth buffer multisample (composición, cielo). Para el Quest el pres
 - El FOV ancho agranda la esfera del shadow map (texel ~5,9 unidades contra ~2,8 en escritorio): las sombras se ven
   más blandas. Unas cascadas lo resolverían.
 
+## Preset Low
+
+Shadow map de 1024 con una sola comparación, sin AO ni sombras de contacto, sin normales suaves, composición de una
+sola pasada con MSAA (la superficie más cercana para todas las muestras del píxel) y sin rayos de luz; bloom de 4
+niveles y nubes del cielo con 3 octavas. En escritorio cuesta ~0,7 ms de GPU sobre el juego (Medium ~1,3 ms).
+El G-buffer se mantiene completo: se probó dibujar solo el follaje y sacar las normales del resto de la profundidad,
+pero el depth buffer guarda la profundidad cuantizada como el N64 y en suelos vistos en ángulo rasante las normales
+salían con escalones (líneas diagonales negras en el terreno).
+
 ## Plataformas móviles (Quest/Android)
+
+En Android la iluminación arranca apagada y, si se enciende, en Low (`src/game/config.cpp`). El build nativo de
+Android (arm64 + VR) compila con todo esto (`android/build_native.sh`, `JOBS=8` para no quedarse sin memoria).
 
 Sin medir en el casco. Por los números de escritorio, el preset Low en VR cuesta ~2,2 ms de una RTX 4070 SUPER, lo que
 en un Adreno 650 sería del orden de decenas de ms: demasiado. Ideas para un preset móvil: sin G-buffer (normales de la
