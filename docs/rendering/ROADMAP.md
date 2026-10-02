@@ -58,5 +58,5 @@
 | Sombras de contacto | hecho | en el pase de AO; sol completo, linterna solo en suelos |
 | VR | hecho | cielo procedural y sol en exteriores aunque VR quite el cielo 2D; casters de un solo ojo |
 | Perfilado por pase | hecho | `RT64_PRINT_FRAME_TIME=2` |
-| Dungeons | en curso | ambiente frío + linterna cálida con caída marcada que flota sobre Mega Man; probado con warps de cámara fija (sin guardado dentro); luces emisivas por color probadas y apagadas (cuestan ~0,2 ms y confunden estandartes con lámparas: harían falta texturas marcadas por hash); falta probar jugando |
+| Dungeons | en curso | ambiente frío + linterna cálida con caída marcada que flota sobre Mega Man y proyecta sombras en todas las direcciones (cubo de sombras desde su pecho, ~0,05 ms); probado con warps de cámara fija (sin guardado dentro); luces emisivas por color probadas y apagadas (cuestan ~0,2 ms y confunden estandartes con lámparas: harían falta texturas marcadas por hash); falta probar jugando |
 | Móvil (Quest) | pendiente | apagado por defecto en Android; preset Low aún pesado en VR (~2,2 ms en la 4070S); ideas en `enhanced-lighting.md` |

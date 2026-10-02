@@ -56,7 +56,7 @@ dejan de verse dentados.
 ```
 ambiente  = lerp(suelo, cielo, N·up * 0.5 + 0.5) * AO
 sol       = colorSol * lerp(1, wrap(N·L), shading) * min(sombra, contacto) * nubes   (+ translucidez en follaje)
-puntual   = colorLinterna * difuso * (1 - d/radio)^caída * contacto          (solo escenas sin sol)
+puntual   = colorLinterna * difuso * (1 - d/radio)^caída * contacto * sombraPuntual   (solo escenas sin sol)
 factor    = (ambiente + (sol + puntual) * lerp(1, AO, aoDirecto)) * exposición
 factor    = lerp(factor, 1, alfaNiebla)                       (la niebla del juego tapa la luz)
 ```
@@ -117,6 +117,9 @@ daba franjas negras.
 | `SKY_R/G/B`, `GROUND_R/G/B` | 0,62/0,66/0,74, 0,50/0,47/0,42 | Ambiente de cielo y de suelo (exteriores). |
 | `INDOOR_AMBIENT`, `INDOOR_GROUND`, `INDOOR_TINT_R/G/B` | 0,72, 0,85, 0,94/1,0/1,08 | Interiores: ambiente, fracción para superficies que miran abajo y tinte. |
 | `POINT`, `POINT_RADIUS`, `POINT_FALLOFF` | 0,9, 0,75, 2 | Linterna de interiores: fuerza, escala del radio (el del `State` es 3000) y exponente de la caída. |
+| `POINT_SHADOW`, `POINT_SHADOW_SIZE`, `POINT_SHADOW_HEIGHT`, `POINT_SHADOW_NEAR` | 1, 0/512/768/1024, 110, 80 | Sombras de la linterna (ver abajo): fuerza, lado de cada cara del cubo por preset (Low sin sombras), altura del origen sobre los pies del jugador y plano cercano (lo que está más cerca, como el propio jugador, no proyecta). |
+| `POINT_SHADOW_NORMAL_OFFSET`, `POINT_SHADOW_BIAS`, `POINT_SHADOW_SOFTNESS` | 1,5, 1,5, 1 | Desplazamiento por la normal y sesgo (en texels a la distancia del píxel) y suavidad del PCF 3x3. |
+| `POINT_SHADOW_ORIGIN`, `POINT_OFFSET_X/Y/Z` | 0, 0 | Desarrollo: 1 dibuja las sombras desde la luz aunque no se conozca al jugador, y la luz se puede mover por los ejes del mundo (para ver las sombras desde una cámara fija de los warps). |
 | `CONTACT_LENGTH`, `CONTACT_THICKNESS`, `CONTACT_STRENGTH`, `CONTACT_STEPS` | 120, 30, 1, 0/8/12/16 | Sombras de contacto (unidades del juego, 1 ≈ 1 cm). |
 | `WRAP`, `SHADING` | 0,5, 1 | Wrap del difuso y cuánto modulan las normales al sol. |
 | `SHADOW_SIZE`, `SHADOW_DISTANCE`, `SHADOW_CASTER_DISTANCE` | por preset, 4000, 6000 | Tamaño y cobertura del shadow map. |
@@ -129,7 +132,7 @@ daba franjas negras.
 | `BUMP` | 0 | Relieve desde el brillo de la textura (apagado: en MM64 las texturas del terreno tienen ventanas por quad y salía una cuadrícula). |
 | `BACKGROUND_DEPTH` | 0,99995 | Profundidad desde la que un píxel es fondo. |
 | `EMISSIVE_MAX`, `EMISSIVE`, `EMISSIVE_LIGHT`, `EMISSIVE_THRESHOLD`, `EMISSIVE_RADIUS`, `EMISSIVE_QUALITY` | 0 (apagado), 0,35, 10, 0,65, 24, 2 | Superficies que brillan en interiores (experimental, ver abajo): luz máxima que suman, brillo propio, fuerza de la luz que proyectan, canal más brillante desde el que una superficie colorida brilla, radio del desenfoque (píxeles a ¼ de resolución) y preset mínimo. |
-| `DEBUG` | 0 | Vistas: 1 factor, 2 normales (espacio de la geometría), 3 sombra (incluye el contacto y las nubes), 4 posición, 5 niebla, 6 AO, 7 distancia al oclusor del shadow map (rojo delante hasta 200 u, verde detrás, azul = normal guardada), 8 sombras de contacto, 9 luz de las superficies que brillan (rojo = brillo propio). |
+| `DEBUG` | 0 | Vistas: 1 factor, 2 normales (espacio de la geometría), 3 sombra (incluye el contacto y las nubes), 4 posición, 5 niebla, 6 AO, 7 distancia al oclusor del shadow map (rojo delante hasta 200 u, verde detrás, azul = normal guardada), 8 sombras de contacto, 9 luz de las superficies que brillan (rojo = brillo propio), 10 sombra de la linterna, 11 el atlas de la linterna tal cual (un texel por píxel desde la esquina). |
 | `PRINT` (variable de entorno) | — | Imprime cada 120 frames las escenas (rect, sol, cámara, casters, texel). |
 
 `RT64_LIGHTING=1/0` fuerza la iluminación ignorando el menú (para pruebas).
@@ -191,6 +194,25 @@ Sin medir en el casco. Por los números de escritorio, el preset Low en VR cuest
 en un Adreno 650 sería del orden de decenas de ms: demasiado. Ideas para un preset móvil: sin G-buffer (normales de la
 profundidad; el follaje pierde el volumen), composición de una pasada sin el tratamiento por superficie del MSAA,
 cielo a un cuarto de resolución, post reducido a grading (sin bloom ni rayos), shadow map de 1024 solo cada dos frames.
+
+## Sombras de la linterna de interiores
+
+En escenas sin sol, la linterna que lleva el jugador proyecta sombras en todas las direcciones: un cubo de 6 caras de 90°
+en un atlas de 3x2 (`pointShadowMap`, D32), dibujado con los mismos *casters* y *replays* fusionados que el shadow map
+del sol (`recordShadowMap` dibuja uno u otro). La composición elige la cara por el eje dominante de
+`posición − origen` (`lightingPointShadowFace`, con los mismos ejes que `computePointShadowFace` en el CPU), calcula
+la profundidad como `a + b / z` y hace un PCF 3x3 que no sale de la cara. Cuesta ~0,03–0,07 ms en Apple Market con
+caras de 512.
+
+- **Origen**: el pecho del jugador (`focusPosition` del host + 110 hacia arriba), no la luz: la linterna flota 350 sobre
+  él y en un techo bajo quedaría encima del techo, que dejaba toda la sala a la sombra (se vio al mover la luz con
+  `POINT_OFFSET_Y` en la casa de Roll). Las sombras salen un poco más bajas que la luz que ilumina; no se nota.
+- **Plano cercano de 80 con recorte de profundidad** (pipelines `shadow*PointPipeline`, a diferencia del sol que aplasta
+  los *casters* contra su plano cercano): el cuerpo del jugador, alrededor del origen, no tapa nada. Recortar en vez de
+  aplastar también bajó el costo de ~0,15 a ~0,05 ms (lo que estaba detrás del plano cercano ocupaba las caras).
+- Sin la posición del jugador (warps de cámara fija, cinemáticas) no hay sombras: la luz se coloca solo desde la cámara.
+  En VR las dos escenas (ojos) usan el mismo atlas, dibujado desde el foco de la primera.
+- Low no las tiene; Medium 512, High 768 y Ultra 1024 por cara (el atlas mide 3 × 2 caras).
 
 ## Superficies que brillan en interiores (experimental, apagado)
 
