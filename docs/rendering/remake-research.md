@@ -460,6 +460,18 @@ Escala usada: esfuerzo para un agente de código con este repo; riesgo = probabi
 - **Alternativa barata (1–2 días):** "más tarjetas": 3–4 tarjetas por árbol con rotación y escala aleatorias y un tinte por racimo; mejora el volumen sin geometría nueva.
 - **Interacción con la iluminación:** las hojas siguen siendo recortes verticales sin luz, así que el path tracer les aplica viento, detalle y volumen como hoy; el ROADMAP pide además sombras con alpha test, que funcionan igual con la malla nueva.
 
+- **Hallazgos (2026-10-02)** al buscar los árboles del bosque del guardado (área 3; `RT64_RT_PRINT_VIEW=1` imprime el
+  área): el terreno del sub 0 tiene 6 ranuras por registro (0/3, 1/4 y 2/5 son iguales de a pares). En la sección de
+  material de dos caras (`G_DL 0x03000000`) de la ranura 0 hay 204 triángulos, 184 verticales, en quads de 192–416 ×
+  320 unidades; en las ranuras 1/2, quads de 192–416 × 640 y 92 quads horizontales de 720 (recortes planos). Con
+  Mega Man de ~150 unidades, los árboles grandes del bosque parecen más altos que 640, así que probablemente no son
+  esas tarjetas sino objetos estáticos (camino de huesos, `func_8003AB60`), que se cambiarían con el hook (A1). Entre los
+  modelos de 1 hueso y pocos triángulos que revisé (`models_survey.json`: 76–90, 97, 102–109, 312–317) no hay árboles
+  (son cristales, nubes de humo, paneles). Siguiente paso: identificar en el juego, con el inspector de RT64 (F1, modo
+  desarrollador), qué draw call y qué grupo de matrices (`TAG_TERRAIN` o `TAG_STATIC_ACTOR`) dibuja un árbol, y desde
+  ahí su modelo o su sección del terreno. Script de exploración: `tree_survey.py <área> <ranura>` (scratchpad de la
+  sesión; recorre los grupos y cuenta triángulos por sección de material).
+
 ### E4. Cielo en HD
 
 - **Qué:** reemplazar las franjas CI4 del cielo (pool 3, `func_8002E8FC`) por un panorama pintado o escalado.
