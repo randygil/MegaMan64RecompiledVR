@@ -144,6 +144,15 @@ Solo píxeles de fondo (profundidad ≥ umbral) dentro del rectángulo y por enc
 El paisaje pintado (montañas, edificios, árboles) y todo lo que está bajo el horizonte (por ejemplo el mar pintado del
 área 6 de MM64) se conserva. El *key* es el alfa del blending, así que el borde contra el paisaje pintado queda suave.
 
+**Solo cielos diurnos** (`LightingSkyAnalyzeCS`): antes del cielo, un compute de un solo grupo promedia el color del
+fondo por encima del horizonte (rejilla de 32x32 muestras de la copia de color) y lo guarda por índice de escena en un
+buffer que persiste entre frames (suavizado al 10 % por frame; si se ven menos de 24 muestras de cielo se conserva el
+valor anterior). El cielo se reemplaza en la medida en que ese promedio parezca un cielo de día:
+`smoothstep(0,02; 0,10; b − r) × smoothstep(−0,02; 0,04; g − r) × smoothstep(0,2; 0,35; luma)`. Un cielo violeta o de
+atardecer tiene más rojo que verde y se conserva entero; antes se mezclaba a parches (el área 10 de MM64, con su cielo
+violeta y nubes rosadas, salía azul con manchas rosadas). Si el host quitó el cielo del juego (VR,
+`LIGHTING_SCENE_FLAG_SKY_HIDDEN` desde `Application::setSkyBackgroundHint`) se reemplaza todo sin analizar.
+
 ### 4.6 Horizonte y salida
 
 - Cerca del horizonte el cielo se funde con el color original de cada píxel:
