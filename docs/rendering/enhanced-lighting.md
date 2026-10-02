@@ -85,7 +85,9 @@ daba franjas negras.
 
 - Vértices con iluminación RSP: su normal. Sin iluminación (Mega Man 64 nunca la usa): **normales suaves** soldadas
   por posición (`RSPSmoothNormalCS`, ángulo `RT64_LIGHT_SMOOTH_NORMALS` = 75°, draw calls de hasta 256/1024 triángulos
-  según preset; el costo es O(n²) por draw call). Si no, la normal de la cara.
+  según preset). Sigue siendo O(n²) por draw call, pero recorre los triángulos en bloques de 64 cargados en memoria
+  compartida y todas las draw calls del frame van en un solo dispatch (tabla de grupos: rango, primer triángulo,
+  pliegue): 0,22 → 0,08 ms en el bosque. Si no, la normal de la cara.
 - **Follaje** (recortes sin luz con textura): *sphere impostor*. El centro de cada tarjeta es el punto medio de la
   arista más larga del triángulo (la diagonal del quad); la normal es la de la esfera donde entra el rayo de la cámara,
   así las dos tarjetas cruzadas de un árbol comparten la misma normal en cada píxel y el árbol se ve como un volumen.
