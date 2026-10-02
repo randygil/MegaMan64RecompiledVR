@@ -74,7 +74,7 @@ cerca de x1,1 y en sombra cerca de x0,6.
 | `STRENGTH`, `EXPOSURE` | 1, 1 | Mezcla con el original y exposición del factor. |
 | `SUN` | 0,9 | Intensidad del sol (tinte del sol estimado normalizado). |
 | `SKY_R/G/B`, `GROUND_R/G/B` | 0,62/0,66/0,74, 0,50/0,47/0,42 | Ambiente de cielo y de suelo (exteriores). |
-| `INDOOR_AMBIENT`, `INDOOR_GROUND`, `POINT` | 0,95, 0,85, 0,35 | Interiores: ambiente y linterna cerca de la cámara. |
+| `INDOOR_AMBIENT`, `INDOOR_GROUND`, `POINT` | 0,85, 0,85, 0,5 | Interiores: ambiente y linterna cerca de la cámara. |
 | `WRAP`, `SHADING` | 0,5, 1 | Wrap del difuso y cuánto modulan las normales al sol. |
 | `SHADOW_SIZE`, `SHADOW_DISTANCE`, `SHADOW_CASTER_DISTANCE` | por preset, 4000, 6000 | Tamaño y cobertura del shadow map. |
 | `SHADOW_STRENGTH`, `SHADOW_BIAS`, `SHADOW_NORMAL_OFFSET`, `SHADOW_SOFTNESS` | 1, 1, 1,5, 1 | Sombras (bias y offset en texels). |
@@ -107,8 +107,9 @@ CPU) ≈ 0,3. El path tracer completo costaba ~9,8 ms.
 - Solo proyectan sombra los objetos que el juego dibuja (lo que queda fuera de cámara no existe para el HLE).
 - La niebla del juego se aproxima por píxel con los parámetros del primer draw call con niebla.
 - En bordes con MSAA el factor es por píxel (leve halo).
-- Con el menú del recomp abierto (juego en pausa) aparece una silueta negra dentada junto a Mega Man; desaparece al
-  cerrar el menú. Pendiente de investigar (probablemente pesos de interpolación sin frames nuevos).
+- Con el menú del recomp abierto aparecen líneas negras dentadas en los bordes del camino de tierra. **No es de la
+  iluminación** (pasa igual con ella apagada): el fondo del menú deja ver el canal alfa del color target, que guarda la
+  cobertura del RDP en los bordes de las texturas.
 - El follaje se detecta por heurística (recorte + sin luz + textura); rejas o carteles recortados también reciben
   normales esféricas.
 
