@@ -130,6 +130,25 @@ hacia el sol y en contra) dan la luz ambiente de las nubes y el color de la brum
 - **Viento**: dirección fija del mundo (`RT64_SKY_WIND_ANGLE`, desde el eje derecho hacia adelante), 0,015
   celdas/s × `RT64_SKY_CLOUD_SPEED`.
 
+### 4.4.1 Sombras de las nubes sobre el suelo
+
+La composición de la iluminación (`LightingComposePS`, función `cloudShadow`) multiplica la sombra del sol por la de
+las nubes: desde la posición de cada píxel sigue el rayo hacia el sol hasta la capa (plana, a una altura de nube sobre
+el origen del mundo: `(p.xz + sol.xz / sol.y · (1 − p.y)) / altura`) y evalúa ahí la misma forma de las nubes (ruido,
+*warp*, cobertura y viento, con los desplazamientos que calcula `LightingSky::getCloudShadow` para el mismo instante).
+`densidad = smoothstep(umbral ± suavidad, forma)` y `luz del sol × (1 − densidad · fuerza)`; la vista de depuración 3
+de la iluminación la muestra junto con el shadow map.
+
+- Solo en exteriores con sol cuyo cielo reemplaza el cielo procedural: se pondera por la parte reemplazable del cielo
+  del juego que mide el análisis (`gSkyAnalysis[escena].w`), salvo en VR, donde el cielo del juego no está y vale 1.
+  Los cielos que se conservan (atardeceres, violeta) no tienen nubes procedurales y tampoco sombras.
+- La escala es **12 veces menor** que la de las nubes del cielo (`RT64_SKY_GROUND_SHADOW_SCALE`): con la escala real
+  (una celda = 30000 unidades) una sola sombra cubría el área entera y no se notaba el paso de las nubes; con 12 las
+  manchas miden del orden de 2500 unidades y cruzan el área a ~40 unidades/s. Nadie puede comparar la sombra con la
+  nube de arriba, así que la incoherencia no se ve.
+- Calidad Low: 2 octavas sin *warp*; Medium en adelante: 3 octavas + *warp* de 2. Costo medido en el bosque
+  (RTX 4070 SUPER, 1600x960 MSAA 4x): composición 0,15 → 0,20 ms (~0,05 ms).
+
 ### 4.5 Keying del fondo (qué píxeles se reemplazan)
 
 Solo píxeles de fondo (profundidad ≥ umbral) dentro del rectángulo y por encima del horizonte geométrico
@@ -214,6 +233,9 @@ tarda unos frames en verse.
 | `RT64_SKY_CLOUD_AMBIENT` | 0,55 | Luz del cielo y del suelo en las nubes. |
 | `RT64_SKY_CLOUD_BELLY` | 0,5 | Oscurecimiento de la base de las nubes gruesas. |
 | `RT64_SKY_CLOUD_HAZE` | 0,15 | Bruma de las nubes lejanas. |
+| `RT64_SKY_GROUND_SHADOW` | 0,45 | Fuerza de las sombras de las nubes sobre el suelo (0 las apaga). |
+| `RT64_SKY_GROUND_SHADOW_SCALE` | 12 | Cuánto más chicas que las nubes del cielo son sus sombras. |
+| `RT64_SKY_GROUND_SHADOW_SOFTNESS` | 0,06 | Suavidad del borde de las sombras (en unidades del ruido; 0,12 las hacía un degradé sin borde). |
 | `RT64_SKY_HORIZON_BLEND` | 0,8 | Cuánto del color original se conserva en el horizonte. |
 | `RT64_SKY_HORIZON_HEIGHT` | 0,12 | Alto de esa mezcla (seno de la elevación). |
 | `RT64_SKY_KEY_WHITE` | 1,0 | *Keying* de píxeles blancos neutros (nubes pintadas). 0 si el juego tiene un fondo gris liso de niebla. |
@@ -284,8 +306,8 @@ cielo pintado y limpia el fondo con un color de niebla gris claro, conviene `set
 - El cielo es diurno: con el sol bajo el horizonte da un crepúsculo oscuro y la mezcla del horizonte puede dejar una
   franja clara del cielo original.
 - Al cambiar de preset cambia la forma de las nubes (el *warp* depende del preset).
-- No hay sombras de nubes sobre el terreno ni perspectiva aérea sobre la geometría; ambas pueden reutilizar
-  `lightingSkyFbm` con las mismas coordenadas (ver `techniques-research.md` §7.3–7.4).
+- No hay perspectiva aérea sobre la geometría; puede reutilizar `lightingSkyFbm` y la tabla del cielo como las sombras
+  de las nubes (4.4.1; ver `techniques-research.md` §7.3–7.4).
 - Si un frame dibujara el cielo más de 32 veces, las ranuras se reutilizarían dentro del mismo frame.
 - Todavía no tiene opción de menú: `enabled()` es el único punto donde combinarlo con una opción del host (por ejemplo
   la de "Sky Enhanced/Original" del path tracer).

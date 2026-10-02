@@ -55,7 +55,7 @@ dejan de verse dentados.
 
 ```
 ambiente  = lerp(suelo, cielo, N·up * 0.5 + 0.5) * AO
-sol       = colorSol * lerp(1, wrap(N·L), shading) * min(sombra, contacto)   (+ translucidez en follaje)
+sol       = colorSol * lerp(1, wrap(N·L), shading) * min(sombra, contacto) * nubes   (+ translucidez en follaje)
 puntual   = colorLinterna * difuso * (1 - d/radio)^caída * contacto          (solo escenas sin sol)
 factor    = (ambiente + (sol + puntual) * lerp(1, AO, aoDirecto)) * exposición
 factor    = lerp(factor, 1, alfaNiebla)                       (la niebla del juego tapa la luz)
@@ -128,7 +128,8 @@ daba franjas negras.
 | `CUTOUT_AA` | 1 | Alpha to coverage de los recortes con MSAA. |
 | `BUMP` | 0 | Relieve desde el brillo de la textura (apagado: en MM64 las texturas del terreno tienen ventanas por quad y salía una cuadrícula). |
 | `BACKGROUND_DEPTH` | 0,99995 | Profundidad desde la que un píxel es fondo. |
-| `DEBUG` | 0 | Vistas: 1 factor, 2 normales (espacio de la geometría), 3 sombra (incluye el contacto), 4 posición, 5 niebla, 6 AO, 7 distancia al oclusor del shadow map (rojo delante hasta 200 u, verde detrás, azul = normal guardada), 8 sombras de contacto. |
+| `EMISSIVE_MAX`, `EMISSIVE`, `EMISSIVE_LIGHT`, `EMISSIVE_THRESHOLD`, `EMISSIVE_RADIUS`, `EMISSIVE_QUALITY` | 0 (apagado), 0,35, 10, 0,65, 24, 2 | Superficies que brillan en interiores (experimental, ver abajo): luz máxima que suman, brillo propio, fuerza de la luz que proyectan, canal más brillante desde el que una superficie colorida brilla, radio del desenfoque (píxeles a ¼ de resolución) y preset mínimo. |
+| `DEBUG` | 0 | Vistas: 1 factor, 2 normales (espacio de la geometría), 3 sombra (incluye el contacto y las nubes), 4 posición, 5 niebla, 6 AO, 7 distancia al oclusor del shadow map (rojo delante hasta 200 u, verde detrás, azul = normal guardada), 8 sombras de contacto, 9 luz de las superficies que brillan (rojo = brillo propio). |
 | `PRINT` (variable de entorno) | — | Imprime cada 120 frames las escenas (rect, sol, cámara, casters, texel). |
 
 `RT64_LIGHTING=1/0` fuerza la iluminación ignorando el menú (para pruebas).
@@ -190,6 +191,24 @@ Sin medir en el casco. Por los números de escritorio, el preset Low en VR cuest
 en un Adreno 650 sería del orden de decenas de ms: demasiado. Ideas para un preset móvil: sin G-buffer (normales de la
 profundidad; el follaje pierde el volumen), composición de una pasada sin el tratamiento por superficie del MSAA,
 cielo a un cuarto de resolución, post reducido a grading (sin bloom ni rayos), shadow map de 1024 solo cada dos frames.
+
+## Superficies que brillan en interiores (experimental, apagado)
+
+Como el path tracer (que en escenas sin sol hace emisivas las superficies con luminancia > 0,45), las escenas sin sol
+pueden tener superficies que brillan y proyectan luz de su color: `LightingEmissiveCS` toma la copia del color target
+(antes de la iluminación), promedia en bloques de 4x4 el color de los píxeles que parecen luces
+(`lightingEmissiveMask`: coloridos con el canal más brillante ≥ `EMISSIVE_THRESHOLD` y luminancia ≥ 0,35, o casi
+blancos), `LightingEmissiveBlurCS` lo desenfoca (gaussiana separable de radio 24 a ¼ de resolución, las muestras fuera
+de la pantalla cuentan como oscuridad) y la composición suma esa luz (saturada en `EMISSIVE_MAX`) y un brillo propio en
+los píxeles que brillan. Corre al principio de `recordCompose` (marcadores de GPU `emissive copy` y `emissive`).
+
+Probado en Apple Market (4,0) y las dungeons 14,1, 20,0 y 26,0: cuesta 0,18–0,25 ms (copia con resolve del MSAA
+~0,06–0,09 ms, los tres pases chicos y sus barreras ~0,12–0,17 ms) y aporta poco: las lámparas de las dungeons son
+pocas, chicas y no llegan al tope del rango (las naranjas de 20,0 valen (0,72, 0,45, 0,09) antes de la iluminación),
+mientras que los estandartes rosados de Apple Market sí pasan el umbral y brillaban como neón. Solo con colores no se
+distinguen; haría falta marcar las texturas emisivas por hash (E5 de `remake-research.md`). Por eso está apagado
+(`EMISSIVE_MAX` = 0) y queda para juegos con luces claras; para probarlo: `RT64_LIGHT_EMISSIVE_MAX 0.6` y
+`RT64_LIGHT_EMISSIVE_QUALITY 1` en el archivo de tuning.
 
 ## Ideas de rendimiento evaluadas (sin implementar)
 

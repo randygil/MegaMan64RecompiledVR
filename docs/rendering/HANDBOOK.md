@@ -82,7 +82,7 @@ Scripts en `C:\Users\Usuario\Devel\tools` (PowerShell; llamarlos con `powershell
 | `keys.ps1 -Keys "0D,wait:1500,20:500,click:0.5,0.6"` | Envía teclas/clics a la ventana del juego (solo si es la ventana activa). `move:x,y` solo mueve el cursor y `wheel:-3` gira la rueda (negativo = hacia abajo): sirve para desplazar la lista de opciones del menú. |
 | `rt_menu.ps1` | Abre el menú de configuración (Esc) y lo captura. Con `keys.ps1 -Keys "click:0.31,0.09"` se pasa a la pestaña Graphics (el clic falla si llega mientras el menú se abre: mandarlo en otra llamada); la lista de opciones se desplaza con `move:0.3,0.5,wheel:-3`. |
 | `light_run.ps1 [-Tuning "N v;N v"] [-Warp a,e]` | Arranca con la iluminación raster (`RT64_LIGHTING=1`, PT apagado) y captura. |
-| `light_tune.ps1 -Sets @("label|N v;N v",...) [-Warp a,e] [-Full] [-SettleMs 1500]` | Una ejecución, varios sets de tuning en vivo; captura y tiempo de frame (CPU y GPU) por set. Con `RT64_LIGHT_PRINT=1` deja en `game_err.txt` las escenas de iluminación. |
+| `light_tune.ps1 -Sets @("label|N v;N v",...) [-Warp a,e] [-Full] [-SettleMs 1500]` | Una ejecución, varios sets de tuning en vivo; captura y tiempo de frame (CPU y GPU) por set (con `$env:RT64_PRINT_FRAME_TIME = "2"` también el tiempo por pase de cada set; usar `-SettleMs 4000`). Con `RT64_LIGHT_PRINT=1` deja en `game_err.txt` las escenas de iluminación. |
 | `light_tune_api.ps1 -Api D3D12 -Sets @(...)` | Igual que `light_tune.ps1` con otra API gráfica; restaura `graphics.json` al terminar. |
 | `vr_tune.ps1 -Sets @(...) [-Area n]` | Igual que `light_tune.ps1` con el build VR de escritorio en modo debug (los dos ojos lado a lado, sin casco; `Downloads\MegaMan64Recompiled-VR`). Con warps de área a veces termina en el menú de ítems; sin warp (bosque) funciona. |
 | `area_scan.ps1 -Areas @("14,0","26,0",...)` | Un arranque por área con el debug warp; captura cada una y arma `shots\scan_sheet.png` (para buscar dungeons). |
@@ -269,7 +269,8 @@ Regla: **todo lo nuevo debe ser agnóstico al juego**.
 - En Bash, los heredocs largos con comillas a veces fallan ("unexpected EOF"): escribir el script con la herramienta
   Write y ejecutarlo (`python archivo.py`). Hay un helper de parches en el scratchpad de la sesión (`patchlib.py`).
 - **Finales de línea**: con `core.autocrlf=true` git normaliza los archivos guardados con LF en el índice, pero algunos
-  de RT64 están guardados con CRLF (`git ls-files --eol`: `i/crlf`, p. ej. `rt64_framebuffer_renderer.cpp`). Si se
+  de RT64 están guardados con CRLF (`git ls-files --eol`: `i/crlf`, p. ej. `rt64_framebuffer_renderer.cpp` y
+  `rt64_lighting_sky.cpp`). Si se
   editan con `sed -i` (Git Bash los deja en LF) el diff abarca el archivo entero: volver a CRLF antes del commit
   (`python -c` que reemplace `\n` por `\r\n`) y revisar `git diff --stat`. Los scripts de Python en modo texto
   escriben CRLF en Windows, que coincide.
