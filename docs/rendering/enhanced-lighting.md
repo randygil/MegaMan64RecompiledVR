@@ -65,8 +65,10 @@ de retraso, buffer `t7`) y tiñe con su croma (`RT64_LIGHT_SKY_TINT` = 0,8 × lo
 el interior frente al atardecer del área 21 quedaba iluminado con el ambiente azulado de un cielo de día. Requiere la
 opción Sky en Enhanced (es el cielo procedural el que mide); en VR no se aplica.
 
-**Interiores y dungeons** (sin sol): ambiente 0,72 algo frío (tinte 0,94/1,0/1,08) y la linterna cálida que lleva la
-cámara (450 arriba, 550 adelante, la pone el `State`) con fuerza 0,9, radio x0,75 del del path tracer y caída
+**Interiores y dungeons** (sin sol): ambiente 0,72 algo frío (tinte 0,94/1,0/1,08) y la linterna cálida que pone el
+`State`: 350 unidades sobre el jugador y 200 hacia la cámara si el host da su posición (`Application::setFocusPosition`;
+el host de MM64 la lee del actor de Mega Man en `0x802049B0`, +0x14 s16 x3, y la pasa al espacio de la geometría con la
+matriz de vista); si no la da o está a más de 2500 unidades de la cámara, 450 arriba y 550 adelante de la cámara con fuerza 0,9, radio x0,75 del del path tracer y caída
 cuadrática: un charco de luz alrededor del jugador y salas que se oscurecen lejos de él, en vez de aclararlo todo
 por igual (el ajuste anterior, ambiente 0,85 + linterna 0,5, daba un factor casi constante de ~1,14 y lavaba las
 dungeons). La linterna no tiene shadow map (podría quedar por encima del techo en salas bajas); sus sombras de

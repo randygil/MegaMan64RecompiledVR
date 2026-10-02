@@ -164,6 +164,8 @@ Estos datos viven **solo en el host** (`src/main/rt64_render_context.cpp`, `src/
 - Árboles: tarjetas cruzadas sin luz con `cvgXAlpha` (alpha test). El mar del área 6 es parte del fondo 2D.
 - El juego corre a 30 fps; RT64 interpola a la tasa de la pantalla si `rr_option` es Display.
 - Huesos de Mega Man: 0 torso, 1 cabeza, 2-4 brazo derecho, 5-7 izquierdo, 8 cadera, 9-11 / 12-14 piernas.
+- Actor de Mega Man: `0x802049B0`; posición s16 (unidades del mundo, -Y arriba) en +0x14/+0x16/+0x18, yaw en
+  `PLAYER_YAW` (ver `patches/vr.c`). El host la pasa a RT64 con `setFocusPosition` para la linterna de interiores.
 - **VR**: el juego dibuja cada ojo en una mitad del framebuffer (dos proyecciones perspectiva, una escena de
   iluminación por ojo). `patches/vr.c` quita el cielo 2D (pool 3) porque en el casco se desliza distinto que el mundo y
   marea; en su lugar `vr_draw_background` pinta el color de la niebla. Como RT64 ya no ve el cielo, el parche avisa con
@@ -225,7 +227,8 @@ rayos, CAS, grading, viñeta) y Sky Original apaga el cielo procedural raster (`
 Regla: **todo lo nuevo debe ser agnóstico al juego**.
 - RT64 solo consume pistas genéricas del host: rotación/traslación mundo→vista (`setWorldViewRotation/Translation`),
   clave de escena (`setSceneKey`), "el sol requiere cielo de fondo" (`setSunRequiresSkyBackground`), "hay un cielo que
-  RT64 no ve" (`setSkyBackgroundHint`, p. ej. porque el host lo quitó en VR), y las que se agreguen (luces de
+  RT64 no ve" (`setSkyBackgroundHint`, p. ej. porque el host lo quitó en VR), "dónde está el jugador"
+  (`setFocusPosition`, en el espacio de la geometría), y las que se agreguen (luces de
   interiores, dirección del sol, etc.). Nada de direcciones de RAM ni ids de área en RT64.
 - Para otro juego N64 en RT64: implementar en el host la lectura de su cámara/escena y llamar a las mismas APIs.
   Juegos que no hornean la cámara en las matrices ya tienen una matriz de vista válida en RT64.
