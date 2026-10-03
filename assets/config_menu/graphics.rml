@@ -466,7 +466,7 @@
                         <b>Enhanced</b> replaces the sky of outdoor scenes with a physically based sky: an atmosphere lit by the sun and clouds that move with the wind. The parts of the game's background that aren't sky, like mountains or buildings, are kept. <b>Original</b> uses the game's sky. Used by the enhanced lighting.
                     </p>
                     <p data-if="cur_config_index == 10">
-                        Adds sun shadows, contact shadows, ambient occlusion, light from the sky and shading that follows the shape of every surface to the game, with classic real time techniques that work on any GPU. Trees and bushes are lit like round volumes and cast leaf shaped shadows. Interiors and ruins get a warm light that follows Mega Man. You can also use <b>F3</b> to toggle it.
+                        Adds sun shadows, contact shadows, ambient occlusion, light from the sky and shading that follows the shape of every surface to the game, with classic real time techniques that work on any GPU. Trees and bushes are lit like round volumes and cast leaf shaped shadows. Interiors and ruins get an even light with soft shadows in their corners. You can also use <b>F3</b> to toggle it.
                     </p>
                     <p data-if="cur_config_index == 12">
                         <b>3D</b> (experimental) gives the trees of the forests a solid trunk and tiered crown inside their painted cards, so they keep their volume when seen from above or in VR, and the lighting can shade them. <b>Original</b> uses only the painted crossed cards. You can also use <b>F6</b> to toggle it.

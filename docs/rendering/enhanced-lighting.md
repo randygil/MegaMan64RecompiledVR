@@ -274,6 +274,12 @@ cielo a un cuarto de resolución, post reducido a grading (sin bloom ni rayos), 
 
 ## Sombras de la linterna de interiores
 
+**Apagada por defecto desde el 2026-10-02** (`RT64_RT_INDOOR_LIGHT` = 0; antes 1,2): en Apple Market, un mercado
+techado que el juego dibuja sin cielo, las sombras de los vecinos salían en línea recta desde Mega Man, como si él fuera
+la lámpara, y giraban a medida que caminaba. Los interiores usan ahora un ambiente parejo casi neutro
+(`RT64_LIGHT_INDOOR_AMBIENT` 0,9, tinte 0,97/1/1,03) con la oclusión ambiental y las sombras de contacto, que no se
+mueven. Lo que sigue describe la linterna para quien la vuelva a encender en vivo.
+
 En escenas sin sol, la linterna que lleva el jugador proyecta sombras en todas las direcciones: un cubo de 6 caras de 90°
 en un atlas de 3x2 (`pointShadowMap`, D32), dibujado con los mismos *casters* y *replays* fusionados que el shadow map
 del sol (`recordShadowMap` dibuja uno u otro). La composición elige la cara por el eje dominante de
