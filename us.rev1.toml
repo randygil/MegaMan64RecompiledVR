@@ -352,12 +352,12 @@ text =  """
 		set_curr_gfx_tag(rdram, ctx);
 		"""
 
-#Tagging - MegaMan Mouth
+#Tagging - MegaMan Mouth, with its own tag so it interpolates against itself and not the eyes
 [[patches.hook]]
 func = "func_8008498C_5FD8C"
 before_vram = 0x80084CAC
 text =  """
-		ctx->r4 = 0x4D454743;
+		ctx->r4 = 0x4D454744;
 		set_curr_gfx_tag(rdram, ctx);
 		"""
 

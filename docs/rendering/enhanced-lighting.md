@@ -174,6 +174,13 @@ propia (viewmodels, HUD 3D) no debe proyectar sombras.
   arista más larga del triángulo (la diagonal del quad); la normal es la de la esfera donde entra el rayo de la cámara,
   así las dos tarjetas cruzadas de un árbol comparten la misma normal en cada píxel y el árbol se ve como un volumen.
   Requiere `SV_PrimitiveID` (capacidad de geometry shaders; si falta, el follaje usa normales de cara).
+- **Recortes de modelos sólidos** (`gEXSetCutoutMode(cmd, G_EX_CUTOUT_SOLID)`): el juego marca que los recortes que
+  dibuja son parte de un modelo y no tarjetas de follaje; se iluminan como cualquier superficie y entran en las normales
+  suaves con el resto del modelo. En MM64 `draw_pools` lo pone en las tareas de personajes (etiquetas de actor, jefe y
+  Mega Man). Motivo (2026-10-02): la boca de Mega Man es un dibujo aparte de 6 triángulos (toda la parte baja de la
+  cara) con esquinas transparentes; como recorte sin luz se iluminaba como una hoja y sin normales suaves, y la cara se
+  veía cortada en facetas (líneas diagonales y una vertical en el mentón). Ojos y boca se dibujan en tareas propias
+  (`func_8008498C`, etiquetas `0x4D454743` y `0x4D454744`).
 
 ## Parámetros (`RT64_LIGHT_*`, editables en vivo con `RT64_RT_TUNING_FILE`)
 

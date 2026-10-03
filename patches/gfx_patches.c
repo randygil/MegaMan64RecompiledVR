@@ -214,6 +214,20 @@ static void vr_backup_task_arg(void *arg, s32 eye) {
     }
 }
 
+// Characters are solid models: their alpha tested parts (Mega Man's mouth has transparent corners) aren't foliage cards
+// for the enhanced lighting, which lit them like leaves and left them out of the smooth normals.
+static bool task_is_character(u32 tag) {
+    switch (GET_TAG_ID(tag)) {
+        case ACTOR_TAG_ID:
+        case STATIC_ACTOR_TAG_ID:
+        case BOSS_TAG_ID:
+        case MEGAMAN_TAG_ID:
+            return TRUE;
+        default:
+            return FALSE;
+    }
+}
+
 //@recomp Runs the queued draw tasks of every pool. eye is -1 for a normal frame, or the eye (0 left, 1 right) whose half
 // of the frame is being drawn, in which case the 2D rectangles each task draws are fitted into that half.
 static void draw_pools(GfxContext *gfxContext, Mtx *mtxprojectionMtx, Mtx *identMtx, s32 *sp14, s32 eye) {
@@ -223,6 +237,7 @@ static void draw_pools(GfxContext *gfxContext, Mtx *mtxprojectionMtx, Mtx *ident
     s32 unkMtx;
     s32 colorDither;
     s32 shadowMode;
+    bool characterTask;
     GfxTaskNode *gfxTaskNode;
 
     poolNum = 0;
@@ -275,12 +290,20 @@ static void draw_pools(GfxContext *gfxContext, Mtx *mtxprojectionMtx, Mtx *ident
                     if (eye >= 0) {
                         vr_backup_task_arg(gfxTaskNode->arg, eye);
                     }
-                    //@recomp Draw tasks that take part in the shadows differently (first person viewmodel and body).
+                    //@recomp Draw tasks that take part in the shadows differently (first person viewmodel and body),
+                    // and characters, whose cutouts are part of solid models.
                     shadowMode = mouse_camera_task_shadow_mode(gfxTaskNode->unk14);
+                    characterTask = task_is_character(gfxTaskNode->unk14);
                     if (shadowMode != G_EX_SHADOW_NORMAL) {
                         gEXSetShadowMode(D_801A90F0_1844F0++, shadowMode);
                     }
+                    if (characterTask) {
+                        gEXSetCutoutMode(D_801A90F0_1844F0++, G_EX_CUTOUT_SOLID);
+                    }
                     gfxTaskNode->func(gfxTaskNode->arg);
+                    if (characterTask) {
+                        gEXSetCutoutMode(D_801A90F0_1844F0++, G_EX_CUTOUT_AUTO);
+                    }
                     if (shadowMode != G_EX_SHADOW_NORMAL) {
                         gEXSetShadowMode(D_801A90F0_1844F0++, G_EX_SHADOW_NORMAL);
                     }
