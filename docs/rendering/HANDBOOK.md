@@ -302,6 +302,20 @@ Regla: **todo lo nuevo debe ser agnóstico al juego**.
   (G-buffer y AO rotos solo en D3D12). Corregido en `plume_d3d12.cpp` (commit de rt64 `6b8c2f1`). Es la causa más
   probable de que el path tracer colgara el GPU en D3D12 (sin verificar). La iluminación raster ya se ve igual en
   D3D12 y Vulkan.
+- **Quest 2: límite de descriptor sets** (2026-10-02): el APK se cerraba ~10 s después de arrancar, incluso con la
+  iluminación apagada (SIGBUS en el `Gfx Thread`, `pc` = `lr` = 0x7000000001: un retorno con la pila pisada). Las
+  capturas de `adb exec-out screencap` que mostraban "una tela naranja" eran el piso del entorno de inicio del Quest:
+  el juego ya se había cerrado. Cómo se encontró: `adb bugreport x.zip` trae `FS/data/tombstones/tombstone_NN` con
+  la pila; el par {fp, lr} sano siguiente en la memoria cerca de `sp`, menos la base de `libmain.so` del mapa de
+  memoria, se simboliza con `llvm-symbolizer --obj=out/build/android-arm64/libmain.so 0x...` (el `libmain.so` sin
+  recortar; comprobar el Build ID con `llvm-readelf -n`). Daba `VulkanPipelineLayout::VulkanPipelineLayout` en
+  `vkCreatePipelineLayout`, y `x28` = 5: los *replays* fusionados de la iluminación usan 5 descriptor sets y el driver
+  del Adreno 650 solo admite 4 (`maxBoundDescriptorSets`): en vez de fallar, corrompe su pila. Ahora plume informa
+  `maxDescriptorSets` y la iluminación solo crea esos pipelines si caben. Regla: **respetar los límites del
+  dispositivo aunque el escritorio los ignore**; en móviles se pagan con cierres sin mensaje.
+- **El Quest pausa la app sin el visor puesto**: con el sensor de proximidad libre la actividad queda en pausa
+  (`xrWaitFrame: returning early due to activity pause`) y `screencap` da negro o el entorno de inicio. Para medir hace
+  falta tener el visor puesto (el broadcast `prox_close` no siempre alcanza).
 - **Validación de Vulkan** (D3D12 es más permisivo y es la API por omisión en Windows, pero Android/Quest usa Vulkan):
   `$env:MM64_VK_VALIDATION = "1"` antes de `light_tune_api.ps1 -Api Vulkan ...` (o `light_tune.ps1` con `api_option`
   en Vulkan) activa `VK_LAYER_KHRONOS_validation`; los errores quedan en `game_out.txt`. Contarlos por VUID:
