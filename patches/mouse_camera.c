@@ -638,9 +638,14 @@ static void draw_megaman_part(u8* player, PsxMatrix* view, s32 bone, s32 part, u
     func_80084870_5FC70(0, 6, part, partMtx, D_80210B62_1EBF62);
 }
 
+static s32 sFaceCycle = -1;
+static s32 sFaceCycleFrame = 0;
+
 // draw_megaman
 RECOMP_PATCH void func_80039FE0_153E0(u8* player) {
     PsxMatrix* view = &D_801D4760_1AFB60;
+    s32 face;
+    s32 mouth;
     s32 variant;
     u8* groupCounts;
     s32 group;
@@ -703,7 +708,22 @@ RECOMP_PATCH void func_80039FE0_153E0(u8* player) {
 
     // The helmet and face are both placed by the head bone, and the face reuses the helmet's matrix.
     draw_megaman_part(player, view, MEGAMAN_HEAD_BONE, MEGAMAN_HELMET_PART, MEGAMAN_PART_GFX_TAG(MEGAMAN_HELMET_PART));
-    func_8008498C_5FD8C(0, 6, PLAYER_FACE(player), PLAYER_MOUTH(player), &D_80210990_1EBD90[0]);
+    face = PLAYER_FACE(player);
+    mouth = PLAYER_MOUTH(player);
+    //@recomp Development: MM64_FACE_CYCLE=1 shows every eye and mouth texture in turn (each for two frames), so a run
+    // with RT64_DUMP_TEXTURES collects them all for an HD pack: the game decompresses them while it draws.
+    if (sFaceCycle < 0) {
+        sFaceCycle = recomp_get_env_int("MM64_FACE_CYCLE");
+    }
+    if (sFaceCycle > 0) {
+        s32 count = *(u16*)0x800CE54C;
+        if (count > 0) {
+            face = (sFaceCycleFrame / 2) % count;
+            mouth = face;
+        }
+        sFaceCycleFrame++;
+    }
+    func_8008498C_5FD8C(0, 6, face, mouth, &D_80210990_1EBD90[0]);
 }
 
 s32 mouse_camera_task_shadow_mode(u32 tag) {

@@ -78,6 +78,24 @@ extern "C" void recomp_get_offscreen_geometry_needed(uint8_t* rdram, recomp_cont
     _return<s32>(ctx, zelda64::renderer::needs_offscreen_geometry() ? 1 : 0);
 }
 
+extern "C" void recomp_get_env_int(uint8_t* rdram, recomp_context* ctx) {
+    PTR(char) name_ptr = _arg<0, PTR(char)>(rdram, ctx);
+    char name[64];
+    size_t length = 0;
+    while (length < sizeof(name) - 1) {
+        const char c = MEM_B(length, (gpr)name_ptr);
+        if (c == '\0') {
+            break;
+        }
+
+        name[length++] = c;
+    }
+
+    name[length] = '\0';
+    const char* value = getenv(name);
+    _return<s32>(ctx, (value != nullptr) ? atoi(value) : 0);
+}
+
 extern "C" void recomp_latch_camera(uint8_t* rdram, recomp_context* ctx) {
     zelda64::renderer::latch_camera(rdram, _arg<0, u32>(rdram, ctx));
 }

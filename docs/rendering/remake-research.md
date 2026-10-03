@@ -8,7 +8,7 @@ Fecha: 2026-10-02. Rama `vr` del repo principal y `mm64vr` de `lib/rt64` (commit
 
 - **Texturas HD: funcionan hoy sin tocar código.** RT64 identifica cada textura con un XXH3 de los bytes de TMEM (más las entradas de paleta usadas y los parámetros del tile), busca el hash en `rt64.json` y escala las coordenadas por la proporción entre la imagen nueva y la original. El recomp carga packs `.rtz` (o carpetas con `mod.json`, o `.nrm` con `rt64.json` dentro) desde `%LOCALAPPDATA%\MegaMan64Recompiled\mods\`. Para volcar texturas: `"developer_mode": true` en `graphics.json`, F1, pestaña Textures.
 - **Herramientas listas en `C:\Users\Usuario\Devel\tools\upscale\`:** `texture_packer`/`texture_hasher` de RT64 compilados aparte; un decodificador de volcados de RT64 a PNG y un puerto en Python del hash y de las cargas de TMEM de RT64, verificados contra el C++ real (300/300 hashes y 300/300 secuencias de carga idénticas); generador de `rt64.json`/`mod.json`; pipeline de escalado por lotes con relleno circular, alfa limpio para recortes, BC7 con mips y mapas de normales.
-- **Pack de todos los modelos generado sin jugar.** Los modelos de MM64 son display lists F3DEX2 precompiladas dentro de un archivo LZSS en la ROM (445 modelos). Reproduciendo sus cargas de textura con el código portado de RT64 se calcularon offline **2577 hashes** (1831 con la paleta propia de cada DL + variantes de paleta) y se armó un pack de prueba escalado con waifu2x: `C:\Users\Usuario\Devel\tools\upscale\rt64\mm64_hd_models_w2x\mm64_hd_models_w2x.rtz` (60 MB, zstd, con low mip cache). **Falta validarlo dentro del juego** (no se ejecutó el juego).
+- **Pack de todos los modelos generado sin jugar.** Los modelos de MM64 son display lists F3DEX2 precompiladas dentro de un archivo LZSS en la ROM (445 modelos). Reproduciendo sus cargas de textura con el código portado de RT64 se calcularon offline **2577 hashes** (1831 con la paleta propia de cada DL + variantes de paleta) y se armó un pack de prueba escalado con waifu2x: `C:\Users\Usuario\Devel\tools\upscale\rt64\mm64_hd_models_w2x\mm64_hd_models_w2x.rtz` (60 MB, zstd, con low mip cache). **Validado en el juego el 2026-10-02** (ver 2.10): el cuerpo de Mega Man, Data y los personajes salen con las texturas nuevas; las caras de Mega Man van en un pack aparte.
 - **El terreno es el problema:** cada quad de terreno carga solo la ventana de texeles que usa (`LOADTILE`), así que un área produce cientos de "texturas" diminutas (607 a 1019 ventanas distintas por área, muchas de 2x3 texeles). Hay tres soluciones (sección 2.8): reproducir offline las DL de terreno y recortar cada ventana de una página escalada completa (recomendada), canonicalizar las cargas con un parche, o enseñarle a RT64 a reemplazar páginas completas.
 - **Escaladores con licencia segura:** waifu2x-ncnn-vulkan (MIT, el más fiel: error 2,04/255), Real-ESRGAN ncnn (BSD-3/MIT), xBRZ/hqx (salidas libres), 4x-PixelPerfectV4 y NMKD Siax (WTFPL), PBRify (CC0). Evitar UltraSharp/UltraMix/Remacri (CC BY-NC-SA). En la RTX 4070 SUPER: 2577 texturas escaladas 4x en 10 s y convertidas a BC7 con mips en 74 s.
 - **Reemplazo de modelos: el camino más factible es del lado del juego.** Cada hueso de cada actor se dibuja con un `gSPDisplayList(*(sp+0x14))` en `func_800805F8` (`0x80081218`): un `[[patches.hook]]` ahí puede sustituir la DL de cualquier (modelo, LOD, hueso) por una nueva en memoria extendida, conservando matrices, animación, interpolación, paletas y los hashes de textura. Los árboles son tarjetas cruzadas dentro de las DL de terreno y se pueden sustituir al cargar el área. RT64 no tiene reemplazo de modelos (su README dice "Details to be determined").
@@ -164,6 +164,28 @@ Resultado: `mm64_hd_models_w2x\mm64_hd_models_w2x.rtz` (60 MB, 2577 DDS BC7 con 
 8. **Empaquetar:**
    `C:\Users\Usuario\Devel\tools\upscale\rt64\bin\texture_packer.exe C:\mm64hd\pack --create-low-mip-cache` y luego `... --create-pack` → `C:\mm64hd\pack\pack.rtz`.
 9. **Instalar:** con el juego cerrado, copiar el `.rtz` a `%LOCALAPPDATA%\MegaMan64Recompiled\mods\` (o arrastrarlo al instalador de mods). Durante el desarrollo, una carpeta con `mod.json` dentro de `mods` también sirve y evita reempaquetar.
+
+### 2.10 Validación en el juego y caras de Mega Man (2026-10-02)
+
+- **Pack de modelos:** instalado en `mods`, el juego lo activa solo al arrancar. En una corrida en el punto de guardado
+  85 de las 474 texturas que se usaron estaban en el pack (el resto es terreno, cielo, HUD y efectos) y todas se
+  reemplazaron: el pecho, las hombreras y la placa de la espalda de Mega Man pasan de píxeles borrosos a bordes limpios,
+  y Data (el mono) pierde los dientes de sierra de las orejas.
+- **Caras:** los ojos y las bocas de Mega Man se descomprimen en cada cuadro (`func_8008498C` → dos llamadas a
+  `func_80028D30`) en dos búferes: ojos en `0x801FF3B8` y bocas en `0x801D7FC8`, CI4 de 64x32 (las bocas traen el
+  número de cada una en las esquinas, que no se ven). Para volcarlas todas sin jugar: `RT64_DUMP_TEXTURES=<carpeta>`
+  (RT64 vuelca desde el arranque, como "Start dumping textures") y `MM64_FACE_CYCLE=1` (el parche de `draw_megaman`
+  muestra cada índice de ojos y boca dos cuadros, hasta la cantidad de `0x800CE54C`). En ~10 s salen 18 ojos y 23 bocas;
+  se identifican por la dirección de RDRAM del `.rice.json` de cada volcado. Pack: `mm64_hd_faces_w2x.rtz` (41
+  texturas, 825 KB), escaladas con waifu2x como el cuerpo para que combinen.
+- **waifu2x contra Real-ESRGAN anime (x4plus_anime_6B)** en las caras: waifu2x respeta el dibujo (contornos grises,
+  colores originales); Real-ESRGAN queda más nítido pero cambia el arte (contornos negros gruesos, una boca de color
+  se vuelve una línea negra). Para MM64 se eligió waifu2x. Los modelos de Upscayl para anime (Remacri, UltraMix) tienen
+  licencia CC BY-NC-SA y los escaladores por difusión inventan detalle distinto en cada textura: descartados.
+- **Terreno (`mm64_hd_terrain_all_w2x.rtz`, 163 MB):** en el bosque casi no cambia (el pasto ya es borroso) y los
+  arbustos de bloques de píxeles quedan con aspecto de acuarela. No se deja instalado.
+- Los packs listos están en `Downloads\MegaMan64Recompiled-HD-Packs\` (se instalan copiándolos a
+  `%LOCALAPPDATA%\MegaMan64Recompiled\mods\` con el juego cerrado; se apagan desde el menú de mods).
 
 ### 2.8 Advertencias de texturas HD (propias de MM64 y generales)
 

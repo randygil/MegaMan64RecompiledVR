@@ -134,6 +134,7 @@ Juego / host (`src/`):
 | `MM64_VR_WARP=<area>[,<entrada>[,<carga>]]` | Reemplaza el área de la N-ésima carga. Vistas útiles: 4,0 Apple Market (interior con NPCs), 5,0 calle de la ciudad, 15,0 casa de Roll, 16,0 mar; dungeons (se congelan sin Mega Man, cámara fija): 14,0 pared azul, 14,1 pasillo de piedra con raíces, 14,2 sala con agua, 20,0 metal azul, 26,0 ruina rosada, 26,1 sala blanca. No hay guardados dentro de una dungeon (las tres partidas disponibles empiezan junto al Flutter). |
 | `MM64_RT_TOGGLE_FILE=<ruta>` | Si se crea ese archivo, alterna el path tracer (para comparar el mismo frame). |
 | `MM64_RT_VIEW_AXIS_SIGNS=x,y,z` | Signos de ejes para la rotación de cámara leída de la RAM (depuración). |
+| `RT64_DUMP_TEXTURES=<carpeta>`, `MM64_FACE_CYCLE=1` | El primero hace que RT64 vuelque cada textura nueva desde el arranque (como "Start dumping textures" del inspector); el segundo pasa a Mega Man por todas sus caras para volcarlas (ver `remake-research.md` 2.10). |
 | `MM64_CAMERA_LATCH=0`, `MM64_CAMERA_LATCH_PRINT=1` | El primero lee la cámara de RDRAM al recibir cada lista, como antes, para comparar; el segundo imprime cada 120 listas cuántas tenían ya en RDRAM una cámara distinta de la que se copió al armarlas. |
 | `MM64_OFFSCREEN_GEOMETRY 0` (entorno o archivo de tuning, en vivo) | Vuelve al culling original del juego (sin la geometría fuera de vista ni la solo de sombra) para comparar. |
 | `RT64_RT_PRINT_VIEW=1` | Imprime traslación de vista, área, sol encendido/apagado. |
