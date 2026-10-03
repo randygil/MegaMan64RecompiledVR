@@ -154,7 +154,7 @@ void quad_shadow_only(const Gfx* quad) {
         return;
     }
 
-    gEXSetShadowOnly(D_801A90F0_1844F0++, 1);
+    gEXSetShadowMode(D_801A90F0_1844F0++, G_EX_SHADOW_ONLY);
     *D_801A90F0_1844F0++ = *quad;
-    gEXSetShadowOnly(D_801A90F0_1844F0++, 0);
+    gEXSetShadowMode(D_801A90F0_1844F0++, G_EX_SHADOW_NORMAL);
 }

@@ -66,3 +66,4 @@ recomp_vr_haptic = 0x8F0000FC;
 recomp_vr_report_sky = 0x8F000100;
 recomp_get_3d_trees_enabled = 0x8F000104;
 recomp_get_offscreen_geometry_needed = 0x8F000108;
+recomp_latch_camera = 0x8F00010C;

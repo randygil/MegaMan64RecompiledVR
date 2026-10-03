@@ -22,6 +22,8 @@ DECLARE_FUNC(s32, recomp_get_mouse_camera_wheel);
 #ifdef MIPS
 bool mouse_camera_adjust_projection(Mtx* projection, u16* perspNorm);
 void mouse_camera_draw_crosshair(void);
+// How the draw task with this tag takes part in the shadows of the enhanced lighting (a G_EX_SHADOW_* mode).
+s32 mouse_camera_task_shadow_mode(u32 tag);
 #endif
 
 #endif //MOUSE_CAMERA_H

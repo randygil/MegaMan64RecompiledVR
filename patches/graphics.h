@@ -12,5 +12,8 @@ DECLARE_FUNC(float, recomp_get_resolution_scale);
 // Whether the renderer needs the geometry around the camera that's out of view (shadows of the enhanced lighting and
 // the path tracer), so the game draws more than what's on screen.
 DECLARE_FUNC(s32, recomp_get_offscreen_geometry_needed);
+// Keeps the camera the frame is drawn with alongside its display list: the renderer reads the list later, when the game
+// may already be moving the camera of the next frame.
+DECLARE_FUNC(void, recomp_latch_camera, u32 displayList);
 
 #endif

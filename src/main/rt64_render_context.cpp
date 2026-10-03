@@ -1,4 +1,5 @@
 #include <atomic>
+#include <mutex>
 #include <filesystem>
 #include <memory>
 #include <cstring>
@@ -379,15 +380,75 @@ zelda64::renderer::RT64Context::~RT64Context() = default;
 // (the game can build the next one first) still see the report, and it fades out a few lists after the sky is gone.
 static std::atomic<int> sky_background_lists = 0;
 
-// The game transforms its geometry with the camera already applied, so RT64 has no world space to place the sun in.
-// The camera rotation is read from the game's current view matrix (PSX style, 4.12 fixed point and -Y up in the world)
-// and converted into a rotation from a world with +Y up into the space of the geometry.
-static void update_world_view_rotation(RT64::Application* app, const uint8_t* rdram) {
-    constexpr uint32_t ViewMatrixAddress = 0x801D4760;
-    auto read_s16 = [rdram](uint32_t address) {
-        return *reinterpret_cast<const int16_t*>(rdram + (((address & 0x3FFFFFF) ^ 2)));
-    };
+// The game's camera and what's read with it: its view matrix (PSX MATRIX: 3x3 s16 4.12 rotation, padding and 3 s32 for
+// the translation), Mega Man's position (s16 x3 at +0x14 of his actor) and the loaded area (s16), copied in RDRAM byte
+// order from 4 byte aligned addresses.
+struct GameCamera {
+    uint32_t display_list = 0;
+    uint8_t matrix[0x20];
+    uint8_t player[0x8];
+    uint8_t area[0x4];
+};
 
+static constexpr uint32_t ViewMatrixAddress = 0x801D4760;
+static constexpr uint32_t PlayerPositionAddress = 0x802049B0 + 0x14;
+static constexpr uint32_t LoadedAreaAddress = 0x801BC450;
+
+static int16_t camera_s16(const uint8_t* block, uint32_t offset) {
+    return *reinterpret_cast<const int16_t*>(block + (offset ^ 2));
+}
+
+static int32_t camera_s32(const uint8_t* block, uint32_t offset) {
+    return *reinterpret_cast<const int32_t*>(block + offset);
+}
+
+static void read_game_camera(const uint8_t* rdram, GameCamera& camera) {
+    memcpy(camera.matrix, rdram + (ViewMatrixAddress & 0x3FFFFFF), sizeof(camera.matrix));
+    memcpy(camera.player, rdram + (PlayerPositionAddress & 0x3FFFFFF), sizeof(camera.player));
+    memcpy(camera.area, rdram + (LoadedAreaAddress & 0x3FFFFFF), sizeof(camera.area));
+}
+
+// The game copies its camera while it builds each display list (latch_camera). The renderer gets the list later, when
+// the game can already be moving the camera of the next frame: reading it from RDRAM then lit some frames with the
+// camera of the next one, which made the shadows shift and flicker while the camera turned.
+static std::mutex camera_latch_mutex;
+static GameCamera camera_latches[4];
+static uint32_t camera_latch_next = 0;
+
+void zelda64::renderer::latch_camera(const uint8_t* rdram, uint32_t display_list) {
+    GameCamera camera;
+    camera.display_list = display_list & 0x3FFFFFF;
+    read_game_camera(rdram, camera);
+
+    std::lock_guard<std::mutex> lock(camera_latch_mutex);
+    for (GameCamera& latch : camera_latches) {
+        if (latch.display_list == camera.display_list) {
+            latch = camera;
+            return;
+        }
+    }
+
+    camera_latches[camera_latch_next] = camera;
+    camera_latch_next = (camera_latch_next + 1) % uint32_t(std::size(camera_latches));
+}
+
+static bool take_camera_latch(uint32_t display_list, GameCamera& camera) {
+    std::lock_guard<std::mutex> lock(camera_latch_mutex);
+    for (GameCamera& latch : camera_latches) {
+        if ((latch.display_list != 0) && (latch.display_list == (display_list & 0x3FFFFFF))) {
+            camera = latch;
+            latch.display_list = 0;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// The game transforms its geometry with the camera already applied, so RT64 has no world space to place the sun in.
+// The camera rotation is taken from the game's view matrix (PSX style, 4.12 fixed point and -Y up in the world) and
+// converted into a rotation from a world with +Y up into the space of the geometry.
+static void update_world_view_rotation(RT64::Application* app, const GameCamera& camera) {
     static float axis_signs[3] = { 1.0f, 1.0f, 1.0f };
     static bool axis_signs_read = false;
     if (!axis_signs_read) {
@@ -404,7 +465,7 @@ static void update_world_view_rotation(RT64::Application* app, const uint8_t* rd
     for (uint32_t i = 0; i < 3; i++) {
         for (uint32_t j = 0; j < 3; j++) {
             // The world of the game has -Y up, so the Y column is negated to take directions from a +Y up world.
-            const float value = read_s16(ViewMatrixAddress + (i * 3 + j) * 2) / 4096.0f;
+            const float value = camera_s16(camera.matrix, (i * 3 + j) * 2) / 4096.0f;
             rotation[i * 3 + j] = value * axis_signs[i] * ((j == 1) ? -1.0f : 1.0f);
             valid = valid || (value != 0.0f);
         }
@@ -413,32 +474,27 @@ static void update_world_view_rotation(RT64::Application* app, const uint8_t* rd
     app->setWorldViewRotation(valid ? rotation : nullptr);
 
     // The translation of the matrix follows the rotation (PSX MATRIX layout), in the same units as the geometry.
-    auto read_s32 = [rdram](uint32_t address) {
-        return *reinterpret_cast<const int32_t*>(rdram + (address & 0x3FFFFFF));
-    };
-
     float translation[3];
     for (uint32_t i = 0; i < 3; i++) {
-        translation[i] = float(read_s32(ViewMatrixAddress + 0x14 + i * 4)) * axis_signs[i];
+        translation[i] = float(camera_s32(camera.matrix, 0x14 + i * 4)) * axis_signs[i];
     }
 
     app->setWorldViewTranslation(valid ? translation : nullptr);
 
-    // Mega Man's position (s16 world units at +0x14 of his actor), moved into the space of the geometry with the same
-    // view matrix, so the light carried in interiors floats above him.
-    constexpr uint32_t PlayerActorAddress = 0x802049B0;
+    // Mega Man's position moved into the space of the geometry with the same view matrix, so the light carried in
+    // interiors floats above him and the sun's shadow map is centered on him.
     if (valid) {
         const float world[3] = {
-            float(read_s16(PlayerActorAddress + 0x14)),
-            float(read_s16(PlayerActorAddress + 0x16)),
-            float(read_s16(PlayerActorAddress + 0x18))
+            float(camera_s16(camera.player, 0)),
+            float(camera_s16(camera.player, 2)),
+            float(camera_s16(camera.player, 4))
         };
 
         float focus[3];
         for (uint32_t i = 0; i < 3; i++) {
             focus[i] = translation[i];
             for (uint32_t j = 0; j < 3; j++) {
-                focus[i] += (read_s16(ViewMatrixAddress + (i * 3 + j) * 2) / 4096.0f) * axis_signs[i] * world[j];
+                focus[i] += (camera_s16(camera.matrix, (i * 3 + j) * 2) / 4096.0f) * axis_signs[i] * world[j];
             }
         }
 
@@ -456,8 +512,7 @@ static void update_world_view_rotation(RT64::Application* app, const uint8_t* rd
 
     // Outdoor areas draw a 2D sky behind the scene. The dungeons don't and many have no ceiling, so the sun would
     // light them from above. The area is the scene key, so an area keeps its sun while the camera looks down.
-    constexpr uint32_t LoadedAreaAddress = 0x801BC450;
-    const int16_t area = read_s16(LoadedAreaAddress);
+    const int16_t area = camera_s16(camera.area, 0);
     static int last_area = -1;
     if ((area != last_area) && (getenv("RT64_RT_PRINT_VIEW") != nullptr)) {
         fprintf(stderr, "Area %d\n", area);
@@ -475,7 +530,34 @@ static void update_world_view_rotation(RT64::Application* app, const uint8_t* rd
 
 void zelda64::renderer::RT64Context::send_dl(const OSTask* task) {
     check_texture_pack_actions();
-    update_world_view_rotation(app.get(), app->core.RDRAM);
+
+    // Development: MM64_CAMERA_LATCH 0 reads the camera from RDRAM as the renderer gets the list, to compare.
+    static const bool use_latch = (getenv("MM64_CAMERA_LATCH") == nullptr) || (atoi(getenv("MM64_CAMERA_LATCH")) != 0);
+    GameCamera latch;
+    const bool has_latch = take_camera_latch(task->t.data_ptr, latch);
+    GameCamera camera;
+    if (has_latch && use_latch) {
+        camera = latch;
+    }
+    else {
+        read_game_camera(app->core.RDRAM, camera);
+    }
+
+    // Development: MM64_CAMERA_LATCH_PRINT counts the lists whose camera in RDRAM had already changed by now.
+    static const bool print_latch = (getenv("MM64_CAMERA_LATCH_PRINT") != nullptr);
+    if (print_latch) {
+        static uint32_t lists = 0, unlatched = 0, changed = 0;
+        GameCamera live;
+        read_game_camera(app->core.RDRAM, live);
+        lists++;
+        unlatched += has_latch ? 0 : 1;
+        changed += (has_latch && (memcmp(live.matrix, latch.matrix, sizeof(live.matrix)) != 0)) ? 1 : 0;
+        if ((lists % 120) == 0) {
+            fprintf(stderr, "Camera latch: %u lists, %u without a copy, %u whose camera had changed in RDRAM\n", lists, unlatched, changed);
+        }
+    }
+
+    update_world_view_rotation(app.get(), camera);
     app->state->rsp->reset();
     app->interpreter->loadUCodeGBI(task->t.ucode & 0x3FFFFFF, task->t.ucode_data & 0x3FFFFFF, true);
     app->processDisplayLists(app->core.RDRAM, task->t.data_ptr & 0x3FFFFFF, 0, true);

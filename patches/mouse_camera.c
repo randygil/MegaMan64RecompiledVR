@@ -2,6 +2,7 @@
 #include "mouse_camera.h"
 #include "tag_helper.h"
 #include "vr.h"
+#include "graphics.h"
 
 // Mouse camera mod: first/third person mouse look.
 //
@@ -613,6 +614,8 @@ RECOMP_PATCH void func_80032FC0_E3C0(Vec3i* target, s32 distance, s32 yaw, s32 p
 // previous frame (they used to share one), and the viewmodel uses different ones so it never blends with the body.
 #define MEGAMAN_PART_GFX_TAG(part) (0x4D454700 | (part))
 #define MEGAMAN_VIEWMODEL_GFX_TAG(part) (0x4D455600 | (part))
+// Mega Man's real body in first person, drawn only for its shadow (see draw_megaman).
+#define MEGAMAN_SHADOW_GFX_TAG(part) (0x4D455300 | (part))
 static u32 sMegaManPartTag = MEGAMAN_PART_GFX_TAG(0);
 
 // Called by the us.rev1.toml hook right before a Mega Man part is queued.
@@ -679,6 +682,21 @@ RECOMP_PATCH void func_80039FE0_153E0(u8* player) {
         }
     }
 
+    //@recomp The viewmodel is seen through a camera of its own (draw_pools draws it without shadows), so in first person
+    // the shadow comes from Mega Man's real body, drawn where he stands for the shadows alone. The viewmodel's own
+    // shadow fell wherever the camera looked: it covered the ground ahead when looking down.
+    if (firstPerson && !vrFirstPerson && recomp_get_offscreen_geometry_needed()) {
+        partIndex = 0;
+        for (group = 0; group < 5; group++) {
+            for (i = 0; i < groupCounts[group]; i++) {
+                s32 part = D_800AC9CC_87DCC[partIndex++];
+                draw_megaman_part(player, view, part, part, MEGAMAN_SHADOW_GFX_TAG(part));
+            }
+        }
+
+        draw_megaman_part(player, view, MEGAMAN_HEAD_BONE, MEGAMAN_HELMET_PART, MEGAMAN_SHADOW_GFX_TAG(MEGAMAN_HELMET_PART));
+    }
+
     if (firstPerson || vrFirstPerson) {
         return;
     }
@@ -686,6 +704,17 @@ RECOMP_PATCH void func_80039FE0_153E0(u8* player) {
     // The helmet and face are both placed by the head bone, and the face reuses the helmet's matrix.
     draw_megaman_part(player, view, MEGAMAN_HEAD_BONE, MEGAMAN_HELMET_PART, MEGAMAN_PART_GFX_TAG(MEGAMAN_HELMET_PART));
     func_8008498C_5FD8C(0, 6, PLAYER_FACE(player), PLAYER_MOUTH(player), &D_80210990_1EBD90[0]);
+}
+
+s32 mouse_camera_task_shadow_mode(u32 tag) {
+    switch (tag & 0xFFFFFF00) {
+        case MEGAMAN_VIEWMODEL_GFX_TAG(0):
+            return G_EX_SHADOW_NONE;
+        case MEGAMAN_SHADOW_GFX_TAG(0):
+            return G_EX_SHADOW_ONLY;
+        default:
+            return G_EX_SHADOW_NORMAL;
+    }
 }
 
 void guMtxF2L(float mf[4][4], Mtx* m);

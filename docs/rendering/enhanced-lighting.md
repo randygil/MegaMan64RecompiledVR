@@ -82,10 +82,13 @@ daba franjas negras.
 
 ## Sombras
 
-- Mapa ortográfico único (1024/2048/2048/4096 según preset) que cubre una esfera alrededor del frustum hasta
-  `RT64_LIGHT_SHADOW_DISTANCE` (4000 unidades). El radio solo depende del FOV, así que los texels no cambian de tamaño
-  al girar; el centro se ajusta a texels en una base **alineada al mundo real** (`worldRight/Up/Forward/Origin` del
-  host), así las sombras no titilan. Función portable: `computeStableShadowMatrix` en `rt64_lighting.cpp`.
+- Mapa ortográfico único (1024/2048/2048/4096 según preset) que cubre un círculo fijo de `RT64_LIGHT_SHADOW_RADIUS`
+  (3000 unidades) **alrededor del jugador** (la posición que da el host; sin ella, alrededor de la cámara). No depende
+  de hacia dónde mira la cámara: girarla no cambia qué cubre el mapa. El centro se ajusta a texels en una base
+  **alineada al mundo real** (`worldRight/Up/Forward/Origin` del host), así las sombras no titilan, y se desvanecen
+  igual en todas direcciones en el último octavo del radio. Función portable: `computeStableShadowMatrix` en
+  `rt64_lighting.cpp`. (Antes cubría una esfera alrededor del frustum, con el centro delante de la cámara: al girar o
+  al mirar hacia abajo las sombras lejanas, o todas, entraban y salían del mapa.)
 - Casters dibujados desde el sol con sus posiciones de mundo (`worldPosBuffer`, ahora calculado siempre que la
   iluminación está activa) y el **alpha test del RDP** (`LightingAlpha.hlsli`) para que las hojas proyecten su forma.
   Los opacos contiguos se dibujan juntos. Depth clip desactivado (casters entre el sol y el plano cercano se aplastan).
@@ -115,10 +118,12 @@ juego para comparar en vivo):
 | Árboles/arbustos (registros en modo de desvanecido 2): un recorredor en CPU descarta cada quad con una esquina más cerca que un umbral (`0x801FFBB8`), incluidos todos los que están detrás | `func_8007D798` | Los quads enteros detrás de la cámara se dibujan; los cercanos se emiten **solo como sombra** |
 | Paredes y utilería grande (modo 3): oculta los quads a menos de 0xC0 u y los cercanos que tapan el centro de la pantalla (donde está Mega Man) | `func_8007DA78` | Igual: detrás se dibujan, los ocultos se emiten solo como sombra |
 
-**Geometría solo de sombra (RT64, genérico):** comando extendido `gEXSetShadowOnly(cmd, 1/0)`
-(`G_EX_SETSHADOWONLY_V1`). Los triángulos dibujados con la marca entran como casters del mapa de sombras pero no van
-al raster, ni al G-buffer, ni a la escena de trazado de rayos; sin la iluminación no se dibujan. Sirve para cualquier
-juego que esconda geometría para despejar la cámara: el juego la sigue escondiendo y su sombra no cambia.
+**Modo de sombra (RT64, genérico):** comando extendido `gEXSetShadowMode(cmd, modo)` (`G_EX_SETSHADOWMODE_V1`).
+`G_EX_SHADOW_ONLY`: los triángulos entran como casters del mapa de sombras pero no van al raster, ni al G-buffer, ni a
+la escena de trazado de rayos; sin la iluminación no se dibujan. Sirve para cualquier juego que esconda geometría para
+despejar la cámara: el juego la sigue escondiendo y su sombra no cambia. `G_EX_SHADOW_NONE`: se dibujan pero no
+proyectan sombra (geometría vista a través de una cámara propia, como el cuerpo en primera persona).
+`G_EX_SHADOW_NORMAL` vuelve a lo normal. `gEXSetShadowOnly(cmd, 1/0)` queda como atajo.
 
 Medido (RTX 4070 SUPER, Ultra, 1600x960, vista del guardado): GPU 2.95 → 3.03 ms; casters 1035 → 1089. Lo que más sube
 son las normales suaves (0.15 → 0.27 ms), que se calculan también para lo que quedó fuera de vista. Prueba: la
@@ -132,6 +137,31 @@ que el contenido de una celda cambiaba sin que la celda desapareciera: eran los 
 Queda: casters muy altos más allá de la distancia de dibujo del juego (al frente, hacia el sol) siguen dependiendo de
 su ventana; y con el trazado de rayos la geometría solo de sombra no entra en la escena de rayos (habría que añadirla
 con una máscara que solo vean los rayos de sombra), así que allí esas sombras siguen dependiendo del juego.
+
+### Segunda ronda: la cámara en movimiento (2026-10-02, noche)
+
+El usuario siguió viendo sombras que cambiaban al mover la cámara (su segundo video: primera persona con el mouse,
+cámara muy baja, `rr_option` Display a 165 Hz). Mis pruebas anteriores eran caminatas con la interpolación de cuadros
+apagada y la cámara en tercera persona, así que no veían nada de esto. Causas y arreglos:
+
+| Causa | Síntoma | Arreglo |
+|---|---|---|
+| **Cuerpo en primera persona**: el mod de cámara dibuja a Mega Man con una vista propia que ignora la inclinación de la cámara (`sViewmodelView`). La iluminación lo pasaba al mundo con la cámara real, así que al mirar abajo su cuerpo quedaba delante de la cámara | Una sombra grande que tapaba el suelo que se miraba, entraba y salía al mover la cámara (el suelo pasaba de iluminado a todo en sombra en dos o tres cuadros) | `draw_pools` envuelve las tareas por etiqueta: las del cuerpo visto (`'MEV'`) con `G_EX_SHADOW_NONE`, y `draw_megaman` dibuja además su cuerpo real (`'MES'`, cabeza incluida, con la vista del juego) solo para la sombra, si la iluminación lo necesita |
+| **Mapa de sombras atado a la vista**: centrado delante de la cámara | Sombras lejanas que aparecían y desaparecían al girar; mirando hacia abajo el centro quedaba bajo tierra | Círculo fijo alrededor del jugador (ver "Sombras") |
+| **Cuadros interpolados**: RT64 interpola la geometría (que ya trae la cámara aplicada) entre dos cuadros del juego, pero la base del mundo (sol, rejilla de texels) era la del cuadro del juego | Con la cámara girando, el sol y la rejilla del mapa se desplazaban respecto a la escena dentro de cada cuadro del juego y volvían al siguiente | `ProjectionProcessor` interpola la base con el mismo peso (`Workload::lerpWorld*`): posición de la cámara en el mundo lineal y rotación normalizada (interpolar el origen en espacio de vista daba un error de ~19 u lejos del origen del mapa); las luces y el jugador colocados con la base del cuadro del juego se mueven con ella (`LightingSceneDesc::gameWorld*`). Un salto de cámara (>45° o >2000 u) no se interpola |
+| **Carrera al leer la cámara**: el host leía la matriz de vista (0x801D4760) al recibir la lista, cuando el juego ya puede estar moviendo la cámara del cuadro siguiente | Algún cuadro suelto iluminado con la cámara de otro (medido: 1 de cada ~1400 cuadros en esta PC; más con carga) | El parche copia la cámara al armar cada lista (`recomp_latch_camera`, export 0x8F00010C) y el host la busca por la dirección de la lista |
+
+Cómo se verificó: `MM64_CAMERA_LATCH_PRINT=1` cuenta las listas cuya cámara ya había cambiado en RDRAM (1 de 1440
+mientras giraba); `RT64_LIGHT_LERP_WORLD 0` y `MM64_CAMERA_LATCH=0` apagan los arreglos para comparar en vivo; en
+primera persona, la vista de sombras (`RT64_LIGHT_DEBUG 3`) con `motion_rec.ps1 -Motion "look:300,1500,turn:..."` muestra
+la silueta completa de Mega Man pegada a sus pies mientras la cámara mira abajo y gira, sin manchas sobre la vista.
+`wobble_scan.py` (diferencia de cada cuadro con el promedio de sus vecinos) no separa con/sin interpolación de la base
+a la velocidad de giro de la prueba (~1° por cuadro del juego: el desplazamiento es de pocos píxeles en bordes suaves).
+
+Lección para otros juegos: en un port con la cámara metida en las matrices de modelo, **todo lo que el host calcula con
+la cámara del juego tiene que ir sincronizado con la lista** (copiarlo al armarla, no leerlo después) **y con la
+interpolación de cuadros** (interpolarlo con el mismo peso que la geometría), y la geometría dibujada con una cámara
+propia (viewmodels, HUD 3D) no debe proyectar sombras.
 
 ## Normales
 
@@ -161,7 +191,8 @@ con una máscara que solo vean los rayos de sombra), así que allí esas sombras
 | `POINT_SHADOW_ORIGIN`, `POINT_OFFSET_X/Y/Z` | 0, 0 | Desarrollo: 1 dibuja las sombras desde la luz aunque no se conozca al jugador, y la luz se puede mover por los ejes del mundo (para ver las sombras desde una cámara fija de los warps). |
 | `CONTACT_LENGTH`, `CONTACT_THICKNESS`, `CONTACT_STRENGTH`, `CONTACT_STEPS` | 120, 30, 1, 0/8/12/16 | Sombras de contacto (unidades del juego, 1 ≈ 1 cm). |
 | `WRAP`, `SHADING` | 0,5, 1 | Wrap del difuso y cuánto modulan las normales al sol. |
-| `SHADOW_SIZE`, `SHADOW_DISTANCE`, `SHADOW_CASTER_DISTANCE` | por preset, 4000, 6000 | Tamaño y cobertura del shadow map. |
+| `SHADOW_SIZE`, `SHADOW_RADIUS`, `SHADOW_CASTER_DISTANCE` | por preset, 3000, 6000 | Tamaño del shadow map, radio del círculo que cubre alrededor del jugador y distancia hacia el sol hasta la que entran casters. |
+| `LERP_WORLD` | 1 | Interpola la base del mundo en los cuadros interpolados (0 para comparar: el sol y la rejilla quedan con la cámara del cuadro del juego). |
 | `SHADOW_STRENGTH`, `SHADOW_BIAS`, `SHADOW_NORMAL_OFFSET`, `SHADOW_SOFTNESS` | 1, 1, 1,5, 1 | Sombras (bias y offset en texels; la suavidad fija solo se usa sin PCSS). |
 | `SHADOW_SUN_SIZE`, `SHADOW_MIN_SOFTNESS`, `SHADOW_MAX_SOFTNESS` | 0,025, 0,75, 5/6/8 | Penumbra variable (PCSS, de Medium en adelante; 0 vuelve a la grilla fija): radio angular del sol en radianes y suavidad mínima/máxima en texels. Búsqueda de oclusores con 8/12/16 lecturas en espiral de ángulo áureo, la distancia media al oclusor por la tangente del sol da el ancho de la penumbra y el filtro usa 12/16/24 comparaciones; si no encuentra oclusores no filtra. Las sombras quedan nítidas junto a lo que las proyecta y más suaves lejos (la punta de la sombra de un árbol); cuesta lo mismo que la grilla fija en el bosque y ~0,05 ms más en la calle. |
 | `FOLIAGE_WRAP`, `FOLIAGE_TRANSLUCENCY`, `FOLIAGE_SHADOW`, `FOLIAGE_SHADOW_OFFSET` | 0,8, 0,6, 0,35, 1 | Follaje. |
@@ -212,9 +243,8 @@ es leer el depth buffer multisample (composición, cielo). Para el Quest el pres
 - El modo VR quita el cielo 2D del juego (marea en el casco). El parche lo informa al host y este a RT64 con
   `setSkyBackgroundHint`, así que las áreas exteriores tienen sol, sombras y el cielo procedural (fijo en el mundo,
   cómodo en VR) en vez de un fondo plano del color de la niebla.
-- El FOV ancho agrandaba la esfera del shadow map (texel ~5,9 unidades contra ~2,8 en escritorio). Ahora el radio se
-  acota (`RT64_LIGHT_SHADOW_MAX_RADIUS` = 3000): con FOV ancho se acorta la distancia de las sombras (~2000 unidades en
-  VR) y el texel queda en ~2,9. Unas cascadas darían ambas cosas a cambio de dibujar los casters dos veces.
+- El shadow map cubre un círculo fijo alrededor del jugador, así que el FOV ancho no cambia el tamaño de los texels
+  (antes la esfera alrededor del frustum crecía con el FOV y había que acotarla).
 
 ## Preset Low
 

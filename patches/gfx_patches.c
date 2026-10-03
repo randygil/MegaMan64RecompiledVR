@@ -5,6 +5,7 @@
 #include "mouse_camera.h"
 #include "vr.h"
 #include "tree3d.h"
+#include "graphics.h"
 
 bool skip_all_interpolation = FALSE;
 bool skip_terrain_interpolation = FALSE;
@@ -221,6 +222,7 @@ static void draw_pools(GfxContext *gfxContext, Mtx *mtxprojectionMtx, Mtx *ident
     u32 var_a2_2;
     s32 unkMtx;
     s32 colorDither;
+    s32 shadowMode;
     GfxTaskNode *gfxTaskNode;
 
     poolNum = 0;
@@ -273,7 +275,15 @@ static void draw_pools(GfxContext *gfxContext, Mtx *mtxprojectionMtx, Mtx *ident
                     if (eye >= 0) {
                         vr_backup_task_arg(gfxTaskNode->arg, eye);
                     }
+                    //@recomp Draw tasks that take part in the shadows differently (first person viewmodel and body).
+                    shadowMode = mouse_camera_task_shadow_mode(gfxTaskNode->unk14);
+                    if (shadowMode != G_EX_SHADOW_NORMAL) {
+                        gEXSetShadowMode(D_801A90F0_1844F0++, shadowMode);
+                    }
                     gfxTaskNode->func(gfxTaskNode->arg);
+                    if (shadowMode != G_EX_SHADOW_NORMAL) {
+                        gEXSetShadowMode(D_801A90F0_1844F0++, G_EX_SHADOW_NORMAL);
+                    }
                     if (eye <= 0) {
                         vr_scan_task_output(taskStart, D_801A90F0_1844F0, poolNum);
                     }
@@ -491,6 +501,9 @@ RECOMP_PATCH void func_800276EC_2AEC(s32 arg0) {
                     gSPFogPosition(D_801A90F0_1844F0++, gfxContext->fogStart, gfxContext->fogEnd);
                     gDPSetFogColor(D_801A90F0_1844F0++, gfxContext->fogRed, gfxContext->fogGreen, gfxContext->fogBlue,
                                    gfxContext->fogAlpha);
+
+                    //@recomp The camera the tasks below draw with, kept with this display list for the lighting.
+                    recomp_latch_camera((u32) D_800D6FB0_B23B0.dls[D_8020559C_1E099C]);
 
                     //@recomp In VR gameplay the scene is drawn once per eye, see patches/vr.c.
                     vr_begin_frame_draw();

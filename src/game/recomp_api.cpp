@@ -78,6 +78,10 @@ extern "C" void recomp_get_offscreen_geometry_needed(uint8_t* rdram, recomp_cont
     _return<s32>(ctx, zelda64::renderer::needs_offscreen_geometry() ? 1 : 0);
 }
 
+extern "C" void recomp_latch_camera(uint8_t* rdram, recomp_context* ctx) {
+    zelda64::renderer::latch_camera(rdram, _arg<0, u32>(rdram, ctx));
+}
+
 extern "C" void recomp_get_mouse_camera_wheel(uint8_t* rdram, recomp_context* ctx) {
     _return<s32>(ctx, recomp::consume_mouse_camera_wheel());
 }
