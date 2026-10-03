@@ -472,7 +472,7 @@
                         <b>3D</b> (experimental) gives the trees of the forests a solid trunk and tiered crown inside their painted cards, so they keep their volume when seen from above or in VR, and the lighting can shade them. <b>Original</b> uses only the painted crossed cards. You can also use <b>F6</b> to toggle it.
                     </p>
                     <p data-if="cur_config_index == 11">
-                        Cost of the enhanced lighting. <b>Low</b> is meant for integrated GPUs, handhelds and standalone VR headsets: smaller shadow maps, no ambient occlusion or contact shadows and simpler effects. <b>Ultra</b> uses the sharpest shadows and the best ambient occlusion.
+                        Cost of the enhanced lighting. <b>Low</b> is meant for integrated GPUs, handhelds and standalone VR headsets: sun shadows and light only, with the game's own sky and no ambient occlusion, contact shadows or extra effects. <b>Ultra</b> uses the sharpest shadows and the best ambient occlusion.
                     </p>
                     <p data-if="cur_config_index == 8">
                         Strength of the effects added on top of the enhanced lighting: bloom, light shafts from the sun, sharpening, color grading and vignette. <b>Off</b> keeps only the lighting and shadows.

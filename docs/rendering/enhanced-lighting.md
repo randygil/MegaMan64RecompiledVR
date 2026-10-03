@@ -255,9 +255,12 @@ es leer el depth buffer multisample (composición, cielo). Para el Quest el pres
 
 ## Preset Low
 
-Shadow map de 1024 con una sola comparación, sin AO ni sombras de contacto, sin normales suaves, composición de una
-sola pasada con MSAA (la superficie más cercana para todas las muestras del píxel) y sin rayos de luz; bloom de 4
-niveles y nubes del cielo con 3 octavas. En escritorio cuesta ~0,7 ms de GPU sobre el juego (Medium ~1,3 ms).
+Shadow map de 1024 con una sola comparación, sin AO ni sombras de contacto, sin normales suaves y composición de una
+sola pasada con MSAA (la superficie más cercana para todas las muestras del píxel). **Desde el 2026-10-02 también sin
+buffer de normales (la composición las saca de la profundidad), sin cielo procedural (queda el del juego) y sin efectos
+de post** (`rasterLightingExtrasEnabled`; `RT64_LIGHT_LOW_EXTRAS 1` los vuelve a poner para comparar): en el VR de
+escritorio esos tres pases sumaban ~1,1 ms contra ~0,75 de sombras y composición, y en el Quest 2 Low iba muy lento.
+Antes costaba ~0,7 ms de GPU sobre el juego en escritorio (Medium ~1,3 ms).
 El G-buffer se mantiene completo: se probó dibujar solo el follaje y sacar las normales del resto de la profundidad,
 pero el depth buffer guarda la profundidad cuantizada como el N64 y en suelos vistos en ángulo rasante las normales
 salían con escalones (líneas diagonales negras en el terreno).
