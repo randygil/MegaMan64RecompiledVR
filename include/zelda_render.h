@@ -52,6 +52,9 @@ namespace zelda64 {
         void set_path_tracing_enabled(bool enabled);
         void set_enhanced_lighting_enabled(bool enabled);
         void set_lighting_quality(int quality);
+        // Whether the enhanced lighting or the path tracer is on: their shadows need the geometry around the camera
+        // that's out of view.
+        bool needs_offscreen_geometry();
         // The game drew a sky behind the current frame that the renderer doesn't see (the VR mode removes the 2D sky),
         // so the frame is lit as an outdoor scene and gets the procedural sky.
         void report_sky_background();

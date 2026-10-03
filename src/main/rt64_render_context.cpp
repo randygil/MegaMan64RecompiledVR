@@ -8,6 +8,7 @@
 #define HLSL_CPU
 #include "hle/rt64_application.h"
 #include "render/rt64_lighting.h"
+#include "render/rt64_tuning.h"
 #include "rt64_render_hooks.h"
 #include "overloaded.h"
 
@@ -514,6 +515,12 @@ void zelda64::renderer::set_enhanced_lighting_enabled(bool enabled) {
 
 void zelda64::renderer::set_lighting_quality(int quality) {
     RT64::setRasterLightingQuality(quality);
+}
+
+bool zelda64::renderer::needs_offscreen_geometry() {
+    // Development aid: MM64_OFFSCREEN_GEOMETRY 0 (environment or tuning file) keeps the game's own culling to compare.
+    const bool enabled = RT64::enhancementValue("MM64_OFFSCREEN_GEOMETRY", 1.0f) > 0.0f;
+    return enabled && (RT64::isRasterLightingEnabled() || zelda64::get_path_tracing_enabled());
 }
 
 void zelda64::renderer::report_sky_background() {

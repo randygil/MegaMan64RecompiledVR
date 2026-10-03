@@ -143,6 +143,143 @@ text= """
 	}
 	"""
 
+#Offscreen geometry - The terrain window also takes the cells around the camera while the renderer needs them for
+# shadows, before the map's zones clamp it (patches/offscreen_geometry.c)
+[[patches.hook]]
+func = "func_80038934_13D34"
+before_vram = 0x80038AB8
+text= """
+	{
+		recomp_context savedCtx = *ctx;
+		terrain_window_extend(rdram, ctx);
+		*ctx = savedCtx;
+	}
+	"""
+
+#Offscreen geometry - Props near the camera pass the behind and screen tests ($a0 is a quarter of the depth, the
+# projected center is at 0x58($sp))
+[[patches.hook]]
+func = "func_8003AB60_15F60"
+before_vram = 0x8003AC60
+text= """
+	{
+		recomp_context savedCtx = *ctx;
+		ctx->r5 = ADD32(savedCtx.r29, 0x58);
+		prop_offscreen_cull(rdram, ctx);
+		gpr quarterDepth = ctx->r2;
+		*ctx = savedCtx;
+		ctx->r4 = quarterDepth;
+	}
+	"""
+
+#Offscreen geometry - Props near the camera pass the behind test ($v1 is a quarter of the depth)
+[[patches.hook]]
+func = "func_8003AFB0_163B0"
+before_vram = 0x8003B04C
+text= """
+	{
+		recomp_context savedCtx = *ctx;
+		ctx->r4 = savedCtx.r3;
+		ctx->r5 = 0;
+		prop_offscreen_cull(rdram, ctx);
+		gpr quarterDepth = ctx->r2;
+		*ctx = savedCtx;
+		ctx->r3 = quarterDepth;
+	}
+	"""
+
+#Offscreen geometry - Characters near the camera pass the behind and screen tests ($a0 is a quarter of the depth, the
+# projected center is at 0x38($sp))
+[[patches.hook]]
+func = "func_8003A2EC_156EC"
+before_vram = 0x8003A400
+text= """
+	{
+		recomp_context savedCtx = *ctx;
+		ctx->r5 = ADD32(savedCtx.r29, 0x38);
+		actor_offscreen_cull(rdram, ctx);
+		gpr quarterDepth = ctx->r2;
+		*ctx = savedCtx;
+		ctx->r4 = quarterDepth;
+	}
+	"""
+
+#Offscreen geometry - Characters drawn only for the shadows don't keep the mark of being seen ($s1 is the character)
+[[patches.hook]]
+func = "func_8003A2EC_156EC"
+before_vram = 0x8003A454
+text= """
+	{
+		recomp_context savedCtx = *ctx;
+		ctx->r4 = savedCtx.r17;
+		actor_offscreen_unmark(rdram, ctx);
+		*ctx = savedCtx;
+	}
+	"""
+
+#Offscreen geometry - Tree and bush quads entirely behind the camera aren't dropped by the fade mode 2 walker ($v1 is
+# the nearest corner's depth, $s3 $s0 $s1 $s2 the corners' offsets in the table of depths)
+[[patches.hook]]
+func = "func_8007D798_58B98"
+before_vram = 0x8007D918
+text= """
+	{
+		recomp_context savedCtx = *ctx;
+		ctx->r4 = savedCtx.r19;
+		ctx->r5 = savedCtx.r16;
+		ctx->r6 = savedCtx.r17;
+		ctx->r7 = savedCtx.r18;
+		quad_offscreen_depth(rdram, ctx);
+		gpr nearestDepth = ctx->r2;
+		*ctx = savedCtx;
+		ctx->r3 = nearestDepth;
+	}
+	"""
+
+#Offscreen geometry - Wall and prop quads entirely behind the camera aren't hidden by the fade mode 3 walker ($v1 is
+# the farthest corner's depth)
+[[patches.hook]]
+func = "func_8007DA78_58E78"
+before_vram = 0x8007DC28
+text= """
+	{
+		recomp_context savedCtx = *ctx;
+		ctx->r4 = savedCtx.r3;
+		quad_offscreen_far_depth(rdram, ctx);
+		gpr farthestDepth = ctx->r2;
+		*ctx = savedCtx;
+		ctx->r3 = farthestDepth;
+	}
+	"""
+
+#Offscreen geometry - Quads the fade mode 2 walker drops still cast shadows ($v0 is 0 for a dropped quad, $s4 points
+# to its G_TRI2)
+[[patches.hook]]
+func = "func_8007D798_58B98"
+before_vram = 0x8007D92C
+text= """
+	if (ctx->r2 == 0) {
+		recomp_context savedCtx = *ctx;
+		ctx->r4 = savedCtx.r20;
+		quad_shadow_only(rdram, ctx);
+		*ctx = savedCtx;
+	}
+	"""
+
+#Offscreen geometry - Quads the fade mode 3 walker hides still cast shadows (0x44($sp) is 0 for a hidden quad, $s0
+# points to its G_TRI2)
+[[patches.hook]]
+func = "func_8007DA78_58E78"
+before_vram = 0x8007DE50
+text= """
+	if (MEM_W(0x44, ctx->r29) == 0) {
+		recomp_context savedCtx = *ctx;
+		ctx->r4 = savedCtx.r16;
+		quad_shadow_only(rdram, ctx);
+		*ctx = savedCtx;
+	}
+	"""
+
 #Tagging - Terrain Transparent
 [[patches.hook]]
 func = "func_8007E8D4_59CD4"
@@ -284,33 +421,36 @@ func = "func_8003912C_1452C"
 vram = 0x80039CDC
 value = 0x00000000 # nop
 
-# Terrain culling tests each tile's center only, and skips the screen bounds test for tiles closer than 0x80 units.
-# Tiles are 512 units wide, so with a camera near the ground (first person) the tiles right around it have centers
-# far to the side or behind while their edges are on screen, and they got culled. Widen the near range to 0x600.
+# Terrain culling tests each tile's center only: tiles more than 0x80 units behind the camera are dropped, and tiles
+# farther than 0x80 units in front get a screen bounds test. Tiles are 512 units wide, so with a camera near the ground
+# (first person) the tiles right around it have centers far to the side or behind while their edges are on screen, and
+# they got culled. The range is 0x1000 units now (0x600 first, for first person): the shadows of the enhanced lighting
+# need the cliffs and ruins beside and behind the camera, whose shadows reach the ground in view, and they popped in
+# and out while the camera turned.
 [[patches.instruction]]
 func = "func_8003912C_1452C"
 vram = 0x800397C8
-value = 0x2402FA00 # addiu $v0, $zero, -0x600
+value = 0x2402F000 # addiu $v0, $zero, -0x1000
 
 [[patches.instruction]]
 func = "func_8003912C_1452C"
 vram = 0x8003980C
-value = 0x240D0600 # addiu $t5, $zero, 0x600
+value = 0x240D1000 # addiu $t5, $zero, 0x1000
 
 [[patches.instruction]]
 func = "func_8003912C_1452C"
 vram = 0x80039AB4
-value = 0x240D0600 # addiu $t5, $zero, 0x600
+value = 0x240D1000 # addiu $t5, $zero, 0x1000
 
 [[patches.instruction]]
 func = "func_8003912C_1452C"
 vram = 0x80039B5C
-value = 0x240D0600 # addiu $t5, $zero, 0x600
+value = 0x240D1000 # addiu $t5, $zero, 0x1000
 
 [[patches.instruction]]
 func = "func_8003912C_1452C"
 vram = 0x80039C54
-value = 0x240D0600 # addiu $t5, $zero, 0x600
+value = 0x240D1000 # addiu $t5, $zero, 0x1000
 
 # Close objects: these object draws skip anything whose depth in front of the camera is under ~48 units (0x30, or
 # 0xC after dividing by 4). The third person camera never gets that close, but a first person or VR camera does, and

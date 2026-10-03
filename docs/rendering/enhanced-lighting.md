@@ -94,6 +94,45 @@ daba franjas negras.
 - El sol sale de `GameConfiguration` (azimut 35°, elevación 32°, `RT64_RT_SUN_AZIMUTH/ELEVATION`). Con el sol bajo las
   sombras de los edificios cubren calles enteras: es correcto, no un bug (ver la vista de depuración 7).
 
+## Sombras estables al mover la cámara (geometría fuera de vista)
+
+Problema (video del usuario, 2026-10-02): al girar o mover la cámara aparecían y desaparecían sombras grandes. El mapa
+de sombras es estable; lo que cambiaba eran los **casters**: el HLE solo ve lo que el juego dibuja, y los juegos
+dibujan solo lo que puede verse. Todo lo que el juego descarta por estar detrás o al costado de la cámara, o por tapar
+la vista, deja de proyectar sombra justo cuando su sombra sí se ve. Es un problema general de cualquier port con
+sombras modernas: hay que pedirle al juego que dibuje un poco más mientras la iluminación lo necesita.
+
+Lo que hace MM64 y cómo se corrige (`patches/offscreen_geometry.c` + hooks en `us.rev1.toml`, solo con la iluminación
+mejorada o el trazado de rayos encendidos; `MM64_OFFSCREEN_GEOMETRY 0` en el archivo de tuning vuelve al culling del
+juego para comparar en vivo):
+
+| Culling del juego | Dónde | Arreglo |
+|---|---|---|
+| Ventana de celdas de terreno (512 u) centrada una distancia de dibujo **delante** de la cámara: detrás solo cubre 0.2 de esa distancia | `func_80038934` (ventana en `0x8017B220..2C`) | La ventana también incluye ±0x1000 u alrededor de la cámara, antes de que las zonas del mapa la recorten |
+| Culling por celda: centro a más de 0x600 u detrás → fuera; cerca → sin prueba de pantalla | `func_8003912C` | Rango 0x1000 (instrucciones en `us.rev1.toml`) |
+| Utilería (carpas, furgoneta, cajas): ventana + profundidad < 1 + centro proyectado fuera de pantalla | `func_8003AB60`, `func_8003AFB0` | Se dibuja si su profundidad está en ±0x1000 |
+| Personajes: igual, pero dibujarse los marca como vistos (byte 6, bit 0x80; lo lee su comportamiento y el fijado de blanco) | `func_8003A2EC` | Se dibujan igual y se les quita la marca enseguida si el juego no los habría dibujado |
+| Árboles/arbustos (registros en modo de desvanecido 2): un recorredor en CPU descarta cada quad con una esquina más cerca que un umbral (`0x801FFBB8`), incluidos todos los que están detrás | `func_8007D798` | Los quads enteros detrás de la cámara se dibujan; los cercanos se emiten **solo como sombra** |
+| Paredes y utilería grande (modo 3): oculta los quads a menos de 0xC0 u y los cercanos que tapan el centro de la pantalla (donde está Mega Man) | `func_8007DA78` | Igual: detrás se dibujan, los ocultos se emiten solo como sombra |
+
+**Geometría solo de sombra (RT64, genérico):** comando extendido `gEXSetShadowOnly(cmd, 1/0)`
+(`G_EX_SETSHADOWONLY_V1`). Los triángulos dibujados con la marca entran como casters del mapa de sombras pero no van
+al raster, ni al G-buffer, ni a la escena de trazado de rayos; sin la iluminación no se dibujan. Sirve para cualquier
+juego que esconda geometría para despejar la cámara: el juego la sigue escondiendo y su sombra no cambia.
+
+Medido (RTX 4070 SUPER, Ultra, 1600x960, vista del guardado): GPU 2.95 → 3.03 ms; casters 1035 → 1089. Lo que más sube
+son las normales suaves (0.15 → 0.27 ms), que se calculan también para lo que quedó fuera de vista. Prueba: la
+caminata hacia atrás junto a la carpa (`walk_bisect.ps1`) tenía 4 saltos de sombra; ahora 0.
+
+Cómo se encontró (útil para otros juegos): grabar con `motion_rec.ps1` la vista de sombras sola mientras se repite el
+mismo movimiento, detectar saltos con `pop_scan.py`, y repetirlo quitando casters por tipo de etiqueta y por celda del
+terreno (tuning temporal de depuración) hasta dar con la celda; luego contar sus draw calls por frame. Con eso se vio
+que el contenido de una celda cambiaba sin que la celda desapareciera: eran los recorredores de quads.
+
+Queda: casters muy altos más allá de la distancia de dibujo del juego (al frente, hacia el sol) siguen dependiendo de
+su ventana; y con el trazado de rayos la geometría solo de sombra no entra en la escena de rayos (habría que añadirla
+con una máscara que solo vean los rayos de sombra), así que allí esas sombras siguen dependiendo del juego.
+
 ## Normales
 
 - Vértices con iluminación RSP: su normal. Sin iluminación (Mega Man 64 nunca la usa): **normales suaves** soldadas
@@ -254,7 +293,8 @@ distinguen; haría falta marcar las texturas emisivas por hash (E5 de `remake-re
 
 ## Limitaciones conocidas
 
-- Solo proyectan sombra los objetos que el juego dibuja (lo que queda fuera de cámara no existe para el HLE).
+- Solo proyectan sombra los objetos que el juego dibuja. En MM64 el parche de geometría fuera de vista (ver arriba) hace
+  que dibuje lo que rodea a la cámara y que lo que oculta para despejar la vista siga como caster solo de sombra.
 - La niebla del juego se aproxima por píxel con los parámetros del primer draw call con niebla.
 - En bordes con MSAA se ilumina cada superficie por separado. Una superficie lejana que ningún vecino muestra (se ve
   solo por una grieta, como las costuras entre los quads de una pared) conserva su color original: antes tomaba la

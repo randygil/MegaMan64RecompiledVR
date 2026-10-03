@@ -717,6 +717,7 @@ int main(int argc, char** argv) {
     REGISTER_FUNC(recomp_vr_haptic);
     REGISTER_FUNC(recomp_vr_report_sky);
     REGISTER_FUNC(recomp_get_3d_trees_enabled);
+    REGISTER_FUNC(recomp_get_offscreen_geometry_needed);
     //REGISTER_FUNC(recomp_get_inverted_axes);
     //REGISTER_FUNC(recomp_get_analog_inverted_axes);
 

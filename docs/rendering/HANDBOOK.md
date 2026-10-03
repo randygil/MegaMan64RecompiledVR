@@ -89,6 +89,12 @@ Scripts en `C:\Users\Usuario\Devel\tools` (PowerShell; llamarlos con `powershell
 | `gallery\build.py` | Arma la página de comparaciones antes/después (`template.html` + `config.json`, capturas de `shots\final\*.png` recortadas y embebidas en JPEG). Publicada como artefacto "Kattelox con luz nueva" (claude.ai/artifact/EUFQ2QLpsoECQGFvhF129B); para actualizarla, volver a capturar, editar `config.json` y republicar el mismo archivo. |
 | `desktop_vr_build.sh` | Compila los parches (zig como compilador MIPS), corre N64Recomp y el build VR de escritorio. Si solo cambia C++, basta `cfg_vr.bat` (ver el script). |
 | `city_test.ps1`, `vr_run.ps1` | Pruebas del build VR de escritorio (simulador o modo debug). |
+| `ab_sweep.ps1 -Toggle NOMBRE [-Tuning "N v"] [-Steps 15 -Dx 712] [-Pre px] [-WalkKey 0x53 -WalkMs 1600]` | Gira la cámara en pasos y captura cada vista dos veces, con el valor de tuning `-Toggle` en 0 y en 1 (mismas vistas, un solo arranque). `-Pre` gira antes de la primera vista (~11400 px por vuelta) y `-WalkKey` camina antes. Retoma el foco en cada paso con una tecla F15 (Alt abría el mapa). |
+| `ab_diff.py shots\prefijo [umbral]` | Para los pares de `ab_sweep`: porcentaje de píxeles que cambian y `prefijo_diff.png` con los cambios en rojo (casi siempre animación: ver dónde). |
+| `motion_rec.ps1 -Tuning "N v" -Motion "walk:0x53,1600,turn:600,2000,both:0x57,800,2500,wait:500"` | Graba la ventana mientras se repite un movimiento con guion (caminar y girar a la vez). Por defecto con `PrintWindow` en un job (~50 fps, funciona detrás de otras ventanas y con el protector de pantalla); `-Recorder dda` usa ffmpeg con Desktop Duplication (se niega con el protector de pantalla). Cuadros en `prefijo_all\f_NNNN_<ms>_<reloj>.png`: el reloj (ms, módulo 10^7) sirve para alinear con logs del juego. |
+| `pop_scan.py carpeta_o_mp4 [umbral] [factor]` | Busca saltos: cuadros que cambian mucho más que sus vecinos; escribe `_pops.png` con el antes/durante/después. Mejor sobre la vista de sombras sola (`RT64_LIGHT_DEBUG 3`). |
+| `walk_bisect.ps1 -Sets @("label|N v;N v",...)` | Repite la caminata de prueba de los saltos de sombra (hacia atrás desde el guardado, sin interpolación de cuadros) una vez por set y cuenta los saltos grandes. Restaura `graphics.json`. |
+| `recomp_func.py func_8003AB60 [regex]` | Imprime el desensamblado (comentarios MIPS) de una función de `RecompiledFuncs`, sin duplicar los delay slots. |
 
 Atajos dentro del juego: **F2** alterna path tracing, **F3** la iluminación raster mejorada, **F6** los árboles 3D
 (opción "Trees"); Esc abre el menú. Los tres se ignoran mientras se asigna una tecla en el menú de controles y al
@@ -127,6 +133,7 @@ Juego / host (`src/`):
 | `MM64_VR_WARP=<area>[,<entrada>[,<carga>]]` | Reemplaza el área de la N-ésima carga. Vistas útiles: 4,0 Apple Market (interior con NPCs), 5,0 calle de la ciudad, 15,0 casa de Roll, 16,0 mar; dungeons (se congelan sin Mega Man, cámara fija): 14,0 pared azul, 14,1 pasillo de piedra con raíces, 14,2 sala con agua, 20,0 metal azul, 26,0 ruina rosada, 26,1 sala blanca. No hay guardados dentro de una dungeon (las tres partidas disponibles empiezan junto al Flutter). |
 | `MM64_RT_TOGGLE_FILE=<ruta>` | Si se crea ese archivo, alterna el path tracer (para comparar el mismo frame). |
 | `MM64_RT_VIEW_AXIS_SIGNS=x,y,z` | Signos de ejes para la rotación de cámara leída de la RAM (depuración). |
+| `MM64_OFFSCREEN_GEOMETRY 0` (entorno o archivo de tuning, en vivo) | Vuelve al culling original del juego (sin la geometría fuera de vista ni la solo de sombra) para comparar. |
 | `RT64_RT_PRINT_VIEW=1` | Imprime traslación de vista, área, sol encendido/apagado. |
 
 RT64 (path tracer y generales):
@@ -175,6 +182,14 @@ Estos datos viven **solo en el host** (`src/main/rt64_render_context.cpp`, `src/
   SHADE): no sirve "sin SHADE = emisivo" para detectar pantallas o lámparas, porque los personajes quedarían sin luz.
   El terreno usa `SHADE*TEXEL0` (luz horneada en los vértices).
 - El juego corre a 30 fps; RT64 interpola a la tasa de la pantalla si `rr_option` es Display.
+- **Culling** (todo en `patches/offscreen_geometry.c`, ver "Sombras estables al mover la cámara" en
+  `enhanced-lighting.md`): ventana de celdas de terreno en `0x8017B220..2C` (columna/fila inicial y final, celdas de
+  512 u; la calcula `func_80038934` adelantada una distancia de dibujo `0x801D87F0`), culling por celda en
+  `func_8003912C`, utilería en `func_8003AB60`/`func_8003AFB0`, personajes en `func_8003A2EC` (marca de visto: byte 6
+  bit 0x80), prueba de ventana `func_80038CF8`. Los grupos del terreno tienen un modo de desvanecido (bits 0xE00 de
+  `+0x46` del registro): modo 2 = recorredor `func_8007D798` (quita quads cerca de la cámara; árboles), modo 3 =
+  `func_8007DA78` (quita lo que tapa a Mega Man); umbral en `0x801FFBB8`, profundidad por vértice en `0x8017C05C + i*8`.
+  Posición de la cámara: s16 x3 en `0x80195E90`; yaw en `0x80204402` (0..0xFFF).
 - Huesos de Mega Man: 0 torso, 1 cabeza, 2-4 brazo derecho, 5-7 izquierdo, 8 cadera, 9-11 / 12-14 piernas.
 - Actor de Mega Man: `0x802049B0`; posición s16 (unidades del mundo, -Y arriba) en +0x14/+0x16/+0x18, yaw en
   `PLAYER_YAW` (ver `patches/vr.c`). El host la pasa a RT64 con `setFocusPosition` para la linterna de interiores.
@@ -244,6 +259,11 @@ Regla: **todo lo nuevo debe ser agnóstico al juego**.
   interiores, dirección del sol, etc.). Nada de direcciones de RAM ni ids de área en RT64.
 - Para otro juego N64 en RT64: implementar en el host la lectura de su cámara/escena y llamar a las mismas APIs.
   Juegos que no hornean la cámara en las matrices ya tienen una matriz de vista válida en RT64.
+- Sombras que aparecen y desaparecen al mover la cámara: casi siempre es el culling del juego (lo de detrás o al
+  costado de la cámara no se dibuja, y lo que tapa la vista se esconde). En cada port hay que parchear ese culling
+  mientras la iluminación esté activa, y marcar con `gEXSetShadowOnly` lo que el juego esconde para despejar la cámara
+  (se dibuja solo en el mapa de sombras). Receta de diagnóstico en "Sombras estables al mover la cámara" de
+  `enhanced-lighting.md`.
 - Para PS1 (otro renderer): reutilizar los shaders y algoritmos (shadow map estable, AO, composición, cielo,
   bloom, CAS) que deben quedar en archivos con entradas explícitas (profundidad, matrices, buffers de vértices) y sin
   dependencias del emulador del RDP. Documentar las entradas de cada pase en `enhanced-lighting.md`.
@@ -310,7 +330,8 @@ Regla: **todo lo nuevo debe ser agnóstico al juego**.
   elevación del sol. La calle de la ciudad (warp 5) estaba a la sombra de un edificio detrás de la cámara con el sol
   a 22°: era correcto. Las normales de la vista 2 están en el espacio de la geometría (ojo PSX, +Y abajo): el suelo
   sale morado `(0,-1,0)`, no verde.
-- `RT64_LIGHT_PRINT=1` imprime cada 120 frames las escenas de iluminación (rect, sol, cámara, casters, texel); si una
+- `RT64_LIGHT_PRINT=1` imprime cada 120 frames (`RT64_LIGHT_PRINT_INTERVAL n` en el tuning para otro intervalo; 1 =
+  cada frame) las escenas de iluminación (rect, sol, cámara, casters, texel); si una
   superficie no está en ninguna escena, o hay más escenas de las esperadas, ahí se ve.
 - Las técnicas en espacio de pantalla (GTAO, sombras de contacto) fallan con superficies vistas casi de canto: en Apple
   Market una pared junto a la cámara recibía una franja negra del marco de una puerta. Remedios aplicados: ignorar
