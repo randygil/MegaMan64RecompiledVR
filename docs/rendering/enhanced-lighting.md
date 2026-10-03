@@ -270,10 +270,30 @@ salían con escalones (líneas diagonales negras en el terreno).
 En Android la iluminación arranca apagada y, si se enciende, en Low (`src/game/config.cpp`). El build nativo de
 Android (arm64 + VR) compila con todo esto (`android/build_native.sh`, `JOBS=8` para no quedarse sin memoria).
 
-Sin medir en el casco. Por los números de escritorio, el preset Low en VR cuesta ~2,2 ms de una RTX 4070 SUPER, lo que
-en un Adreno 650 sería del orden de decenas de ms: demasiado. Ideas para un preset móvil: sin G-buffer (normales de la
-profundidad; el follaje pierde el volumen), composición de una pasada sin el tratamiento por superficie del MSAA,
-cielo a un cuarto de resolución, post reducido a grading (sin bloom ni rayos), shadow map de 1024 solo cada dos frames.
+**Medido en un Quest 2 (2026-10-02/03)**, en la partida del usuario (los dos ojos, 1920x1440 en total, sin MSAA), con
+`RT64_PRINT_FRAME_TIME=2` y `RT64_RT_TUNING_FILE` puestos desde `env.txt` y los presets cambiados en vivo desde la PC:
+
+| GPU por frame | Sin iluminación | Low antes | Low ahora | Low con extras | Medium |
+|---|---|---|---|---|---|
+| total | 8,4–10,5 ms (31 fps) | 68,9 ms (13 fps) | **17,9 ms (30 fps)** | 87,7 ms | 158 ms |
+| composición | — | 43,1 | **4,4** | 3,6 | 10,8 |
+| shadow map | — | 13,8 | **0,14** | 24,4 | 68,9 |
+| G-buffer | — | 1,0 | 1,3 | 35,7 | 35,7 |
+
+- **La composición copiaba su `LightingParams` (704 bytes) de un `StructuredBuffer` en cada píxel**: en el Adreno eso
+  costaba 42 ms (en escritorio, nada). Ahora la lee de un *constant buffer* por escena (`sceneParamsBuffers`, relleno a
+  768 bytes porque D3D12 redondea las vistas a 256): 43 → 4,4 ms. Regla para móviles: **parámetros uniformes en
+  constant buffers, nunca estructuras grandes copiadas de un storage buffer por píxel**.
+- **Los casters con alpha test** (árboles) muestrean su textura como el RDP en el shader de sombras: ~14–24 ms en el
+  Quest. Low los deja fuera (dibujarlos opacos proyectaría el rectángulo de la tarjeta): en Low los árboles no
+  proyectan sombra.
+- El G-buffer (35 ms con todo) y el shadow map completo siguen siendo carísimos en el Adreno: Medium y superiores no
+  sirven ahí. Sin el G-buffer, Low saca las normales de la profundidad.
+- Los destellos blancos que se ven a veces en el Quest (una franja en el horizonte y arcos arriba y abajo durante 1–2
+  cuadros) **también salen con la iluminación apagada**: son del dibujo VR, no de la iluminación (pendiente).
+- Medir en el casco: el autoload por teclas no funciona en Android, así que se mide en la partida del usuario con el
+  visor puesto (si no, el Quest pausa la app). `adb shell screenrecord` sí graba lo que se ve en el casco (los dos ojos
+  con la distorsión de las lentes), útil para buscar destellos.
 
 ## Sombras de la linterna de interiores
 

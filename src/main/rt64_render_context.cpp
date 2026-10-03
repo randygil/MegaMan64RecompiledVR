@@ -233,6 +233,10 @@ ultramodern::renderer::GraphicsApi map_graphics_api(RT64::UserConfiguration::Gra
     std::exit(EXIT_FAILURE);
 }
 
+// Set once the renderer is set up, which can take long the first time (compiling shaders on a Quest). The runtime only
+// starts its VI thread after it, and the game must not start before that thread runs (see update_gfx's autostart).
+static std::atomic<bool> renderer_ready = false;
+
 zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::renderer::WindowHandle window_handle, bool debug) {
     static unsigned char dummy_rom_header[0x40];
     recompui::set_render_hooks();
@@ -372,6 +376,11 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
     }
 
     high_precision_fb_enabled = app->shaderLibrary->usesHDR;
+    renderer_ready = true;
+}
+
+bool zelda64::renderer::is_renderer_ready() {
+    return renderer_ready;
 }
 
 zelda64::renderer::RT64Context::~RT64Context() = default;

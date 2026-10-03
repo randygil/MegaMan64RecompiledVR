@@ -55,6 +55,8 @@ namespace zelda64 {
         // Whether the enhanced lighting or the path tracer is on: their shadows need the geometry around the camera
         // that's out of view.
         bool needs_offscreen_geometry();
+        // Whether the renderer finished setting up (it can take a while the first time, compiling shaders).
+        bool is_renderer_ready();
         // Copies the game's camera (and the player's position) for the display list being built, so the renderer lights
         // that list with the camera it was drawn with even if the game has moved on to the next frame by then.
         void latch_camera(const uint8_t* rdram, uint32_t display_list);

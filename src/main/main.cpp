@@ -191,14 +191,16 @@ void update_gfx(void*) {
     recomp::handle_events();
 
     // Development aid: MM64_AUTOSTART=1, or an autostart.txt file in the app folder, starts the game from the
-    // launcher right away.
+    // launcher right away. The wait counts from when the renderer is ready: the runtime only starts its VI thread then,
+    // and a game started before that thread's first tick gets no dummy VI mode, so the thread read a null one (a crash
+    // on the first start of a new build on the Quest, which spends ~15 s compiling shaders).
     static bool autostart_done = false;
     static const bool autostart = getenv("MM64_AUTOSTART") != nullptr ||
         std::filesystem::exists(zelda64::get_app_folder_path() / "autostart.txt");
-    if (!autostart_done && autostart) {
-        static const auto first_update = std::chrono::steady_clock::now();
+    if (!autostart_done && autostart && zelda64::renderer::is_renderer_ready()) {
+        static const auto ready_time = std::chrono::steady_clock::now();
         std::u8string game_id = supported_games[0].game_id;
-        if (std::chrono::steady_clock::now() - first_update > std::chrono::seconds(3) && recomp::is_rom_valid(game_id)) {
+        if (std::chrono::steady_clock::now() - ready_time > std::chrono::seconds(3) && recomp::is_rom_valid(game_id)) {
             autostart_done = true;
             recomp::start_game(supported_games[0].game_id);
             recompui::hide_all_contexts();
