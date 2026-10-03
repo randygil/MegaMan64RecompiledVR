@@ -134,12 +134,9 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
                 recompui::toggle_fullscreen();
             }
             // Graphics toggles: not while a key is being bound (the key is the binding) nor on key repeat (each toggle
-            // rewrites the config files). F4 toggles the texture packs in RT64's developer mode.
+            // rewrites the config files). F4 toggles the texture packs in RT64's developer mode. The path tracer is hidden
+            // (the enhanced lighting replaced it), so F2 no longer toggles it.
             const bool graphicsToggle = (scanning_device == recomp::InputDevice::COUNT) && !event->key.repeat;
-            if (graphicsToggle && (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F2)) {
-                zelda64::set_path_tracing_enabled(!zelda64::get_path_tracing_enabled());
-                zelda64::save_config();
-            }
             if (graphicsToggle && (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F3)) {
                 zelda64::set_enhanced_lighting_enabled(!zelda64::get_enhanced_lighting_enabled());
                 zelda64::save_config();

@@ -463,7 +463,8 @@ bool load_graphics_config(const std::filesystem::path& path) {
     ultramodern::renderer::GraphicsConfig new_config{};
     ultramodern::from_json(config_json, new_config);
     ultramodern::renderer::set_graphics_config(new_config);
-    path_tracing_enabled = (config_json.value("pt_option", std::string("Off")) == "On");
+    // The path tracer is hidden (the enhanced lighting replaced it): it stays off whatever an older config says.
+    path_tracing_enabled = false;
     const std::string effects = config_json.value("pt_effects_option", std::string("Full"));
     for (int i = 0; i < 3; i++) {
         if (effects == path_tracing_effects_names[i]) {
