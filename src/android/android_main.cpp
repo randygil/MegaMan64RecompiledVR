@@ -61,6 +61,31 @@ void android_prepare_environment() {
         setenv("APP_FOLDER_PATH", external_path, 1);
     }
     printf("Android paths: internal %s external %s\n", internal_path ? internal_path : "(null)", external_path ? external_path : "(null)");
+
+    // Development aid: an env.txt in the app folder sets environment variables (one NAME=VALUE per line), since an app
+    // can't be started with them on Android (for example MM64_AUTOLOAD=1 or RT64_PRINT_FRAME_TIME=2).
+    if (external_path != nullptr) {
+        FILE* file = fopen((std::string(external_path) + "/env.txt").c_str(), "r");
+        if (file != nullptr) {
+            char line[512];
+            while (fgets(line, sizeof(line), file) != nullptr) {
+                std::string text(line);
+                while (!text.empty() && ((text.back() == '\n') || (text.back() == '\r') || (text.back() == ' '))) {
+                    text.pop_back();
+                }
+
+                const size_t equals = text.find('=');
+                if ((equals == std::string::npos) || (equals == 0) || (text[0] == '#')) {
+                    continue;
+                }
+
+                setenv(text.substr(0, equals).c_str(), text.substr(equals + 1).c_str(), 1);
+                printf("env.txt: %s\n", text.c_str());
+            }
+
+            fclose(file);
+        }
+    }
 }
 
 void android_import_rom(const std::u8string& game_id_in) {
